@@ -1,0 +1,102 @@
+หากคุณต้องการนำข้อมูลจากโปรเจกต์นี้ไปสั่งให้ AI สร้าง **Web Application ใหม่ด้วย Google Apps Script (GAS) + Google Sheets + Google Drive** ข้อมูลที่ต้องเตรียมและส่งให้ AI มีทั้งหมด **5 ส่วนสำคัญ** ดังนี้ครับ:
+
+---
+
+### 📦 1. โครงสร้างชีตฐานข้อมูล (Google Sheets Schema)
+บอก AI ให้สร้าง Google Sheet ที่มีชีตข้อมูลหลัก (แนะนำแนบไฟล์ [CLS_Master_Database_Original.xlsx](file:///d:/Pod/NT/ทรสส/job/CLS%20Database/รายงาน/Antigravity/Web%20app%20CLS/CLS_Master_Database_Original.xlsx) หรือระบุหัวตาราง):
+
+1. **`Sites`**: รหัสสถานี (`PKB`, `SKA`), ชื่อสถานี, ที่อยู่, พิกัด GPS (Lat, Long), เบอร์ติดต่อ
+2. **`Buildings`**: รหัสอาคาร (`PKB-B01`, `SKA-B01`), จำนวนชั้น, พื้นที่รวม
+3. **`Floors`**: รหัสชั้น (`L1`–`L4`), ชื่อชั้น, ผังแปลนพื้น
+4. **`Rooms`**: 
+   - `Room_ID` (เช่น `PKB-B01-F04-R01`), `Room_No` (`R01`), `Room_Name` (`3G`), `Floor`, `Area_sqm`, `Height_m`, `Max_Power_kW`
+   - `Status`: `VACANT` (ว่าง), `OCCUPIED` (ใช้งาน), `MAINTENANCE` (ซ่อมบำรุง), `RESERVED` (จอง)
+   - `Pin_X`, `Pin_Y`: พิกัดหมุดบนแปลนพื้น
+5. **`Assets`**: หมวดอุปกรณ์ (`Power`, `Cooling`, `Security`, `Certificates`), ชื่ออุปกรณ์, รุ่น/Serial, วันติดตั้ง, วันหมดอายุการตรวจเช็ค (PM)
+6. **`Customers` & `Contracts`**: รายชื่อบริษัทลูกค้า, เลขที่สัญญา, ห้องที่เช่า, วันเริ่มต้น-สิ้นสุดสัญญา, ค่าเช่า
+7. **`Users`**: `Username`, `Password_Hash`, `Salt`, `DisplayName`, `Department`, `Role` (`admin`, `engineer`, `viewer`), `Station_Scope` (`ALL`, `PKB`, `SKA`)
+8. **`PhotoPoints`**: รหัสรูป, `Room_ID`, `Drive_File_ID` / URL, คำอธิบายมาตรฐาน `ภาพถ่ายจริงห้อง {ชื่อห้อง} ({ROOM_ID}) - ภาพที่ {ลำดับ}`
+9. **`ChangeLog`**: วันที่/เวลา, ผู้แก้ไข, รายการที่แก้ไข (Audit Trail)
+
+---
+
+### 📁 2. โครงสร้างโฟลเดอร์ใน Google Drive (Storage Architecture)
+แจ้ง AI ถึงโครงสร้าง Folder ID ใน Drive ที่ใช้จัดเก็บและดึงไฟล์:
+
+```text
+Root_Folder (ROOT_FOLDER_ID)
+├── 01_Sites_Station_Photos/       # รูปภาพภายนอกสถานี
+├── 02_Building_Photos_Drawings/   # รูปตัวอาคารและ Drawing สถาปัตย์
+├── 03_Floor_Plans/                # รูปแปลนพื้นแต่ละชั้น (L1-L4)
+├── 04_Room_Photos/                # รูปถ่ายจริงภายในห้อง (แยกโฟลเดอร์ PKB / SKA)
+└── 05_Documents_Certificates/     # ไฟล์ PDF สัญญาเช่า & ใบรับรองมาตรฐาน
+```
+*ฟังก์ชันที่ต้องมีใน GAS:* การแปลงไฟล์อัปโหลด Base64 จากหน้าบ้าน → สร้างไฟล์ใน Google Drive → บันทึก URL/File ID กลับลง Google Sheet
+
+---
+
+### ⚙️ 3. สถาปัตยกรรม Backend ของ GAS (`.gs` Files)
+บอก AI ให้แบ่งโค้ดเป็นโมดูลชัดเจน เพื่อความปลอดภัยและดูแลรักษาง่าย:
+
+1. **`Code.gs`**:
+   - ฟังก์ชัน `doGet(e)`: เสิร์ฟหน้าเว็บแบบ SPA (HTML Service)
+   - ค่าคงที่: `CONFIG.SPREADSHEET_ID` และ `CONFIG.ROOT_FOLDER_ID`
+2. **`Auth.gs`**:
+   - ระบบ Login, Token Session (เก็บใน `CacheService`), Password Hashing (SHA-256 + Salt)
+   - ฟังก์ชัน Gateway: `api(token, functionName, argsJson)` เพื่อคัดกรองสิทธิ์ก่อนเข้าถึงข้อมูล
+3. **`Data.gs`**:
+   - ฟังก์ชันอ่าน/เขียน CRUD: `getAppData_()`, `updateRoom_()`, `updateAsset_()`, `saveContract_()`
+   - ใช้ `LockService.getScriptLock()` ป้องกันข้อมูลเขียนทับซ้อน (Concurrency Protection)
+4. **`Drive.gs`**:
+   - ฟังก์ชันจัดการไฟล์: `uploadPhoto_()`, `deleteFile_()`, `getFolderTree_()`
+
+---
+
+### 🎨 4. รายละเอียดหน้าบ้าน UI/UX & ระบบสิทธิ์ (Frontend Requirements)
+แจ้งสเปกหน้าจอและดีไซน์ที่ต้องการ:
+
+- **Technology Stack หน้าบ้าน:** Single HTML File (`Index.html` + `Style.html` + `JavaScript.html`), Tailwind CSS หรือ Bootstrap 5 CDN, SweetAlert2 (แจ้งเตือน), Lucide Icons, SheetJS (ส่งออก Excel)
+- **ระบบสิทธิ์ 3 ระดับ (RBAC):**
+  1. `admin`: สิทธิ์เต็มรูปแบบ (เพิ่ม/แก้ไข/ลบ ห้อง, อุปกรณ์, สัญญา และจัดการผู้ใช้งาน)
+  2. `engineer`: ดูข้อมูลและอัปเดตสเปกอุปกรณ์/รูปภาพได้ แต่ไม่มีสิทธิ์จัดการบัญชีผู้ใช้
+  3. `viewer`: ดูข้อมูลอย่างเดียว (Read-only)
+- **ฟังก์ชันหน้าจอหลักที่ต้องมี:**
+  - 🚪 **Full-screen Login Page:** พร้อมปุ่มคลิก Quick Demo Accounts สำหรับทดสอบ
+  - 📊 **Dashboard:** การ์ดสลับสถานี PKB / SKA, พิกัด GPS, การ์ดข้อมูลตัวอาคาร และสรุปสถิติห้อง
+  - 🏢 **Rooms & 360 Modal:** ตารางห้องพร้อมตัวกรองสถานะ และหน้าต่างดูข้อมูลรอบด้าน (สเปกห้อง, สัญญาเช่า, อุปกรณ์ในห้อง, แกลเลอรีรูปถ่าย)
+  - 🗺️ **Interactive Floor Plan:** แปลนชั้นพร้อมหมุดสีตามสถานะห้อง (`เขียว-ว่าง`, `ฟ้า-ใช้งาน`, `แดง-ซ่อม`, `เหลือง-จอง`)
+  - ⚡ **Engineering Assets:** ระบบไฟฟ้า, แอร์, ความปลอดภัย, ใบรับรองมาตรฐาน พร้อมปุ่มพิมพ์รายงาน A4/PDF
+  - 📥 **Export:** ส่งออกตารางเป็น Excel (`.xlsx`) และสั่งพิมพ์/บันทึกเป็น PDF สวยงาม
+
+---
+
+### 📋 5. Prompt สำเร็จรูป (Master Prompt Template) ที่นำไปสั่ง AI ได้ทันที
+
+คุณสามารถ Copy ข้อความด้านล่างนี้ไปสั่ง AI เพื่อให้เริ่มสร้างโปรเจกต์ GAS ได้เลยครับ:
+
+````markdown
+ช่วยสร้าง Web Application สำหรับบริหารจัดการศูนย์โทรคมนาคมและสถานีเคเบิลใต้น้ำ (CLS Facility Center)
+โดยใช้ Google Apps Script (HTML Service) + Google Sheets (ฐานข้อมูล) + Google Drive (ที่เก็บรูปภาพ/เอกสาร)
+
+สเปกระบบที่ต้องการ:
+1. รองรับ 2 สถานีหลัก: 
+   - PKB (ปากบารา จ.สตูล - 4 ชั้น 39 ห้อง)
+   - SKA (สงขลา จ.สงขลา - 3 ชั้น 23 ห้อง)
+2. ระบบความปลอดภัยและสิทธิ์ (RBAC):
+   - มีหน้า Login สวยงาม พร้อมระบบ Quick Demo Account
+   - แบ่งสิทธิ์เป็น Admin, Engineer, Viewer
+   - มี API Gateway `api(token, fnName, args)` ตรวจสอบ Token ผ่าน CacheService ก่อนเข้าถึง Google Sheet
+3. โครงสร้าง Google Sheet:
+   - ชีต Sites, Buildings, Floors, Rooms, Assets, Customers, Contracts, Users, PhotoPoints, ChangeLog
+4. โครงสร้าง Google Drive:
+   - รองรับการอัปโหลด/ลบ รูปภาพและเอกสาร PDF โดยบันทึก File ID ลงใน Google Sheet
+5. ฟังก์ชันหน้าบ้าน (SPA):
+   - Dashboard ภาพรวมสถานี, GPS, การ์ดอาคาร
+   - หน้าตารางข้อมูลห้อง (Rooms) พร้อมตัวกรองสถานะ (VACANT, OCCUPIED, MAINTENANCE, RESERVED) และ Modal ข้อมูล 360 องศา
+   - หน้าระบบวิศวกรรม (Power, Cooling, Security, Certificates)
+   - หน้ารายการสัญญาเช่าและรายชื่อลูกค้า
+   - ระบบส่งออกข้อมูลเป็น Excel (.xlsx) และส่งออก PDF / พิมพ์แบบ A4
+   - แปลนพื้น (Floor Plan) พร้อมหมุดระบุสถานะห้อง
+
+ช่วยออกแบบโครงสร้างไฟล์โค้ดของ Google Apps Script (Code.gs, Auth.gs, Data.gs, Drive.gs, Index.html, Style.html, JavaScript.html) และโครงสร้างคอลัมน์ของ Google Sheet ให้สมบูรณ์ทีละขั้นตอน
+````
