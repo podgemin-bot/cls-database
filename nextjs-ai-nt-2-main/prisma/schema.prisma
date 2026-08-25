@@ -8,12 +8,129 @@ datasource db {
   provider = "mysql"
 }
 
-model product {
-  id      Int     @id @default(autoincrement())
-  name    String  @db.VarChar(100)
-  price   Decimal @db.Decimal(10, 0)
-  picture String  @db.VarChar(150)
+// ================= CLS Facility Center =================
+
+enum RoomStatus {
+  VACANT
+  OCCUPIED
+  MAINTENANCE
+  RESERVED
 }
+
+enum AssetCategory {
+  POWER
+  COOLING
+}
+
+model Site {
+  id           Int           @id @default(autoincrement())
+  code         String        @unique @db.VarChar(10)
+  name         String        @db.VarChar(150)
+  province     String        @db.VarChar(80)
+  lat          Float?
+  lng          Float?
+  buildings    Building[]
+  certificates Certificate[]
+}
+
+model Building {
+  id       Int      @id @default(autoincrement())
+  siteId   Int
+  code     String   @unique @db.VarChar(20)
+  name     String   @db.VarChar(150)
+  site     Site     @relation(fields: [siteId], references: [id])
+  floors   Floor[]
+}
+
+model Floor {
+  id         Int          @id @default(autoincrement())
+  buildingId Int
+  level      Int
+  code       String       @unique @db.VarChar(30)
+  label      String       @db.VarChar(50)
+  planImage  String?      @db.VarChar(200)
+  building   Building     @relation(fields: [buildingId], references: [id])
+  rooms      Room[]
+  assets     Asset[]
+
+  @@unique([buildingId, level])
+}
+
+model Room {
+  id             Int           @id @default(autoincrement())
+  floorId        Int
+  code           String        @unique @db.VarChar(40)
+  no             Int
+  name           String        @db.VarChar(100)
+  areaSqm        Float?
+  ceilingHeightM Float?
+  raisedFloorCm  Float?
+  floorLoadKgm2  Float?
+  status         RoomStatus    @default(OCCUPIED)
+  tenant         String?       @db.VarChar(150)
+  floor          Floor         @relation(fields: [floorId], references: [id])
+  assets         Asset[]
+  photoPoints    PhotoPoint[]
+  security       RoomSecurity?
+}
+
+model RoomSecurity {
+  id              Int     @id @default(autoincrement())
+  roomId          Int     @unique
+  cctvCount       Int?
+  accessControl   String? @db.VarChar(100)
+  fireSuppression String? @db.VarChar(150)
+  gasPressure     String? @db.VarChar(100)
+  vesda           String? @db.VarChar(100)
+  doorLockType    String? @db.VarChar(100)
+  firePanelBrand  String? @db.VarChar(100)
+  gasTankCount    Int?
+  room            Room    @relation(fields: [roomId], references: [id])
+}
+
+model PhotoPoint {
+  id         Int    @id @default(autoincrement())
+  roomId     Int
+  code       String @unique @db.VarChar(50)
+  seqOnFloor Int
+  x          Float?
+  y          Float?
+  room       Room   @relation(fields: [roomId], references: [id])
+}
+
+model Asset {
+  id         Int           @id @default(autoincrement())
+  category   AssetCategory
+  code       String        @unique @db.VarChar(40)
+  legacyCode String?       @db.VarChar(60)
+  name       String        @db.VarChar(150)
+  brand      String?       @db.VarChar(80)
+  model      String?       @db.VarChar(120)
+  status     String?       @db.VarChar(60)
+  specs      Json?
+  roomId     Int?
+  floorId    Int?
+  room       Room?         @relation(fields: [roomId], references: [id])
+  floor      Floor?        @relation(fields: [floorId], references: [id])
+}
+
+model Certificate {
+  id           Int       @id @default(autoincrement())
+  code         String    @unique @db.VarChar(60)
+  siteId       Int
+  scope        String    @db.VarChar(20)
+  name         String    @db.VarChar(200)
+  issuer       String?   @db.VarChar(120)
+  certNo       String?   @db.VarChar(80)
+  issuedAt     DateTime?
+  expiresAt    DateTime?
+  detail       String?   @db.Text
+  buildingCode String?   @db.VarChar(20)
+  roomCode     String?   @db.VarChar(40)
+  site         Site      @relation(fields: [siteId], references: [id])
+}
+
+// ================= Better Auth =================
 
 model User {
   id            String    @id
@@ -21,6 +138,7 @@ model User {
   email         String
   emailVerified Boolean   @default(false)
   image         String?   @db.Text
+  role          String    @default("VIEWER") @db.VarChar(20)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
