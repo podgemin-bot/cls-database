@@ -1,33 +1,137 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Zap } from "lucide-react";
+import { connection } from "next/server";
+import type { Metadata } from "next";
+import prisma from "@/lib/prisma";
+import type {
+  SerializedCertificate,
+  SerializedCoolingAsset,
+  SerializedPowerAsset,
+  SerializedRoomSecurityRow,
+} from "@/lib/cls";
+import EngineeringClient from "./engineering-client";
 
 export const instant = false;
 
-export const metadata = { title: "ระบบวิศวกรรม" };
+export const metadata: Metadata = { title: "ระบบวิศวกรรม" };
+
+const ISO = (d: Date | null): string | null =>
+  d ? d.toISOString() : null;
 
 export default async function EngineeringPage() {
+  await connection();
+
+  const [assets, certs, rooms] = await Promise.all([
+    prisma.asset.findMany({
+      orderBy: { code: "asc" },
+      include: { floor: { include: { building: { include: { site: true } } } }, room: { select: { code: true } } },
+    }),
+    prisma.certificate.findMany({
+      orderBy: { code: "asc" },
+      include: { site: true },
+    }),
+    prisma.room.findMany({
+      orderBy: { code: "asc" },
+      include: { floor: { include: { building: { include: { site: true } } } }, security: true },
+    }),
+  ]);
+
+  const power: SerializedPowerAsset[] = assets
+    .filter((a) => a.category === "POWER")
+    .map((a) => ({
+      id: a.id,
+      code: a.code,
+      legacyCode: a.legacyCode,
+      name: a.name,
+      brand: a.brand,
+      model: a.model,
+      status: a.status,
+      specType: (a.specs as { type?: string | null } | null)?.type ?? null,
+      capacity: (a.specs as { capacity?: string | null } | null)?.capacity ?? null,
+      siteCode: a.floor?.building.site.code ?? null,
+      floorLabel: a.floor?.label ?? null,
+    }));
+
+  const cooling: SerializedCoolingAsset[] = assets
+    .filter((a) => a.category === "COOLING")
+    .map((a) => {
+      const s = (a.specs ?? {}) as {
+        type?: string | null;
+        btuTotal?: number | null;
+        unitsTotal?: number | null;
+        unitsReady?: number | null;
+        unitsDown?: number | null;
+        efficiencyPct?: number | null;
+      };
+      return {
+        id: a.id,
+        code: a.code,
+        legacyCode: a.legacyCode,
+        name: a.name,
+        model: a.model,
+        specType: s.type ?? null,
+        btuTotal: s.btuTotal ?? null,
+        unitsTotal: s.unitsTotal ?? null,
+        unitsReady: s.unitsReady ?? null,
+        unitsDown: s.unitsDown ?? null,
+        efficiencyPct: s.efficiencyPct ?? null,
+        siteCode: a.floor?.building.site.code ?? a.room?.code?.split("-")[0] ?? null,
+        roomCode: a.room?.code ?? null,
+      };
+    });
+
+  const certificates: SerializedCertificate[] = certs.map((c) => ({
+    id: c.id,
+    code: c.code,
+    name: c.name,
+    scope: c.scope,
+    issuer: c.issuer,
+    certNo: c.certNo,
+    issuedAt: ISO(c.issuedAt),
+    expiresAt: ISO(c.expiresAt),
+    detail: c.detail,
+    siteCode: c.site.code,
+    siteName: c.site.name,
+    buildingCode: c.buildingCode,
+    roomCode: c.roomCode,
+  }));
+
+  const securityRows: SerializedRoomSecurityRow[] = rooms
+    .filter((r) => r.security)
+    .map((r) => ({
+      id: r.id,
+      code: r.code,
+      name: r.name,
+      siteCode: r.floor.building.site.code,
+      floorLabel: r.floor.label,
+      cctvCount: r.security!.cctvCount,
+      accessControl: r.security!.accessControl,
+      fireSuppression: r.security!.fireSuppression,
+      vesda: r.security!.vesda,
+      gasPressure: r.security!.gasPressure,
+      gasTankCount: r.security!.gasTankCount,
+      doorLockType: r.security!.doorLockType,
+      firePanelBrand: r.security!.firePanelBrand,
+    }));
+
+  const totalPower = power.length;
+  const totalCooling = cooling.length;
+  const totalCerts = certificates.length;
+  const totalSecurity = securityRows.length;
+
   return (
     <div className="mx-auto max-w-(--breakpoint-xl) px-4 py-8 sm:px-6 lg:px-8">
-      <h1 className="mb-6 text-2xl font-bold tracking-tight">ระบบวิศวกรรม</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Zap className="size-5 text-primary" /> กำลังพัฒนา (Phase 4)
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          <p>
-            หน้ารวมอุปกรณ์ Power System (13 รายการ) และ Precision Air Conditioning
-            (17 รายการ) พร้อมสถานะ &ldquo;แจ้งเตือน&rdquo; และหน้าใบรับรองมาตรฐาน
-            (7 ใบ) ที่มี badge นับถอยหลังวันหมดอายุ
-          </p>
-          <p className="mt-2">
-            ข้อมูลถูก import เรียบร้อยแล้วในตาราง{" "}
-            <code className="font-mono">Asset</code> และ{" "}
-            <code className="font-mono">Certificate</code>
-          </p>
-        </CardContent>
-      </Card>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">ระบบวิศวกรรม</h1>
+        <p className="text-sm text-muted-foreground">
+          ระบบไฟฟ้า (Power) · เครื่องปรับอากาศแม่นยำ (Precision AC) · ใบรับรองมาตรฐาน · ความปลอดภัยของห้อง
+        </p>
+      </div>
+      <EngineeringClient
+        power={power}
+        cooling={cooling}
+        certificates={certificates}
+        security={securityRows}
+        totals={{ power: totalPower, cooling: totalCooling, certs: totalCerts, security: totalSecurity }}
+      />
     </div>
   );
 }

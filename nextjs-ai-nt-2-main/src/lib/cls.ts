@@ -111,3 +111,65 @@ export type SerializedFloorPlan = {
   buildingName: string
   rooms: PlanRoom[]
 }
+
+export type SerializedPowerAsset = {
+  id: number
+  code: string
+  legacyCode: string | null
+  name: string
+  brand: string | null
+  model: string | null
+  status: string | null
+  specType: string | null
+  capacity: string | null
+  siteCode: string | null
+  floorLabel: string | null
+}
+
+export type SerializedCoolingAsset = {
+  id: number
+  code: string
+  legacyCode: string | null
+  name: string
+  model: string | null
+  specType: string | null
+  btuTotal: number | null
+  unitsTotal: number | null
+  unitsReady: number | null
+  unitsDown: number | null
+  efficiencyPct: number | null
+  siteCode: string | null
+  roomCode: string | null
+}
+
+export type SerializedCertificate = {
+  id: number
+  code: string
+  name: string
+  scope: string
+  issuer: string | null
+  certNo: string | null
+  issuedAt: string | null
+  expiresAt: string | null
+  detail: string | null
+  siteCode: string
+  siteName: string
+  buildingCode: string | null
+  roomCode: string | null
+}
+
+export type SerializedRoomSecurityRow = {
+  id: number
+  code: string
+  name: string
+  siteCode: string
+  floorLabel: string
+  cctvCount: number | null
+  accessControl: string | null
+  fireSuppression: string | null
+  vesda: string | null
+  gasPressure: string | null
+  gasTankCount: number | null
+  doorLockType: string | null
+  firePanelBrand: string | null
+}
