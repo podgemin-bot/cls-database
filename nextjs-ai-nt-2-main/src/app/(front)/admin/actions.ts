@@ -5,7 +5,10 @@ import { refresh } from "next/cache";
 import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 
-export type Roles = "ADMIN" | "EDITOR" | "VIEWER";
+const ROLES = ["ADMIN", "EDITOR", "VIEWER"] as const;
+export type Roles = (typeof ROLES)[number];
+
+const isRole = (v: string): v is Roles => (ROLES as readonly string[]).includes(v);
 
 export type AdminResult = { ok: boolean; error?: string };
 
@@ -14,10 +17,12 @@ async function requireAdmin(): Promise<null | string> {
     .getSession({ headers: await headers() })
     .catch(() => null);
   if (!session?.user?.id) return "unauthorized";
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true },
-  });
+  const user = await prisma.user
+    .findUnique({
+      where: { id: session.user.id },
+      select: { role: true },
+    })
+    .catch(() => null);
   if (!user || user.role !== "ADMIN") return "forbidden";
   return null;
 }
@@ -34,10 +39,20 @@ export async function createUser(
   if (!name.trim() || !email.trim() || password.length < 8) {
     return { ok: false, error: "invalid-input" };
   }
+  if (!isRole(role)) {
+    return { ok: false, error: "invalid-input" };
+  }
+
+  const normalized = email.trim().toLowerCase();
+
+  const existing = await prisma.user
+    .findUnique({ where: { email: normalized } })
+    .catch(() => null);
+  if (existing) return { ok: false, error: "email-exists" };
 
   try {
     const created = await auth.api.signUpEmail({
-      body: { name: name.trim(), email: email.trim(), password },
+      body: { name: name.trim(), email: normalized, password },
     });
     await prisma.user.update({
       where: { id: created.user.id },
@@ -46,7 +61,7 @@ export async function createUser(
     refresh();
     return { ok: true };
   } catch {
-    return { ok: false, error: "email-exists" };
+    return { ok: false, error: "server-error" };
   }
 }
 
@@ -56,16 +71,21 @@ export async function setUserRole(
 ): Promise<AdminResult> {
   const denied = await requireAdmin();
   if (denied) return { ok: false, error: denied };
+  if (!isRole(role)) return { ok: false, error: "invalid-input" };
 
-  const target = await prisma.user.findUnique({ where: { id: userId } });
-  if (!target) return { ok: false, error: "not-found" };
+  try {
+    const target = await prisma.user.findUnique({ where: { id: userId } });
+    if (!target) return { ok: false, error: "not-found" };
 
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (session?.user?.id === userId && role !== "ADMIN") {
-    return { ok: false, error: "cannot-demote-self" };
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (session?.user?.id === userId && role !== "ADMIN") {
+      return { ok: false, error: "cannot-demote-self" };
+    }
+
+    await prisma.user.update({ where: { id: userId }, data: { role } });
+    refresh();
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "server-error" };
   }
-
-  await prisma.user.update({ where: { id: userId }, data: { role } });
-  refresh();
-  return { ok: true };
 }

@@ -45,6 +45,7 @@ const ERROR_LABEL: Record<string, string> = {
   "email-exists": "อีเมลนี้ถูกใช้แล้ว",
   "not-found": "ไม่พบผู้ใช้",
   "cannot-demote-self": "ไม่สามารถลดสิทธิ์ตัวเองได้",
+  "server-error": "เกิดข้อผิดพลาด กรุณาลองใหม่",
 };
 
 export default function AdminClient({ users }: Props) {

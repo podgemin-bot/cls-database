@@ -14,10 +14,12 @@ async function requireEditor(): Promise<string | null> {
     .getSession({ headers: await headers() })
     .catch(() => null);
   if (!session?.user?.id) return "unauthorized";
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true },
-  });
+  const user = await prisma.user
+    .findUnique({
+      where: { id: session.user.id },
+      select: { role: true },
+    })
+    .catch(() => null);
   if (!user || (user.role !== "ADMIN" && user.role !== "EDITOR")) {
     return "forbidden";
   }
@@ -43,38 +45,42 @@ export async function savePin(
     return { ok: false, error: "invalid-coordinates" };
   }
 
-  const room = await prisma.room.findUnique({
-    where: { id: roomId },
-    include: {
-      floor: { include: { building: true } },
-      photoPoints: { orderBy: { seqOnFloor: "asc" }, take: 1 },
-    },
-  });
-  if (!room) return { ok: false, error: "room-not-found" };
-
-  const existing = room.photoPoints[0];
-  if (existing) {
-    await prisma.photoPoint.update({
-      where: { id: existing.id },
-      data: { x, y },
-    });
-  } else {
-    const agg = await prisma.photoPoint.aggregate({
-      where: { room: { floorId: room.floorId } },
-      _max: { seqOnFloor: true },
-    });
-    const seq = (agg._max.seqOnFloor ?? 0) + 1;
-    await prisma.photoPoint.create({
-      data: {
-        roomId,
-        code: `PT-${room.floor.building.code}-F${pad(room.floor.level, 2)}-${pad(seq, 3)}`,
-        seqOnFloor: seq,
-        x,
-        y,
+  try {
+    const room = await prisma.room.findUnique({
+      where: { id: roomId },
+      include: {
+        floor: { include: { building: true } },
+        photoPoints: { orderBy: { seqOnFloor: "asc" }, take: 1 },
       },
     });
-  }
+    if (!room) return { ok: false, error: "room-not-found" };
 
-  refresh();
-  return { ok: true };
+    const existing = room.photoPoints[0];
+    if (existing) {
+      await prisma.photoPoint.update({
+        where: { id: existing.id },
+        data: { x, y },
+      });
+    } else {
+      const agg = await prisma.photoPoint.aggregate({
+        where: { room: { floorId: room.floorId } },
+        _max: { seqOnFloor: true },
+      });
+      const seq = (agg._max.seqOnFloor ?? 0) + 1;
+      await prisma.photoPoint.create({
+        data: {
+          roomId,
+          code: `PT-${room.floor.building.code}-F${pad(room.floor.level, 2)}-${pad(seq, 3)}`,
+          seqOnFloor: seq,
+          x,
+          y,
+        },
+      });
+    }
+
+    refresh();
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "server-error" };
+  }
 }

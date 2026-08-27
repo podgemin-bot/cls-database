@@ -214,7 +214,6 @@ async function main() {
     const legacy = str(cell(power, r, 4))
     if (!legacy) continue
     const site = str(cell(power, r, 1))!
-    const parts = legacy.split("-")
     const bldgCode = `${site}-B01`
     const level = parseLevel(cell(power, r, 3)) ?? 1
     const floorId = floorIds.get(`${bldgCode}-F${pad2(level)}`) ?? null

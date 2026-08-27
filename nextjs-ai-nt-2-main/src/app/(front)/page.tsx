@@ -2,7 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Building2, Layers, DoorOpen, MapPin, ArrowRight } from "lucide-react";
 import prisma from "@/lib/prisma";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { STATUS_META, STATUS_ORDER, type RoomStatus } from "@/lib/cls";
