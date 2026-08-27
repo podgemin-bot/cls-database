@@ -4,6 +4,7 @@ import { NavMenu } from "@/components/nav-menu";
 import { NavigationSheet } from "@/components/navigation-sheet";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
+import prisma from "@/lib/prisma";
 import { headers } from "next/headers";
 import LogoutButton from "./logout-button";
 
@@ -12,12 +13,20 @@ const Navbar = async () => {
     headers: await headers()
   });
 
+  let isAdmin = false;
+  if (session?.user?.id) {
+    const user = await prisma.user
+      .findUnique({ where: { id: session.user.id }, select: { role: true } })
+      .catch(() => null);
+    isAdmin = user?.role === "ADMIN";
+  }
+
   return (
     <header className="sticky top-0 z-40 h-16 border-b bg-background/95 backdrop-blur">
       <div className="mx-auto flex h-full max-w-(--breakpoint-xl) items-center justify-between px-4 sm:px-6 lg:px-8">
         <Logo />
 
-        <NavMenu className="hidden md:block" />
+        <NavMenu className="hidden md:block" isAdmin={isAdmin} />
 
         <div className="flex items-center gap-3">
           {!session && (
@@ -36,7 +45,7 @@ const Navbar = async () => {
           )}
 
           <div className="md:hidden">
-            <NavigationSheet />
+            <NavigationSheet isAdmin={isAdmin} />
           </div>
         </div>
       </div>
