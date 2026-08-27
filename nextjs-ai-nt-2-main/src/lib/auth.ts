@@ -11,5 +11,8 @@ export const auth = betterAuth({
         autoSignIn: false,
         requireEmailVerification: false,
         minPasswordLength: 8
+    },
+    logger: {
+        level: "debug"
     }
 });

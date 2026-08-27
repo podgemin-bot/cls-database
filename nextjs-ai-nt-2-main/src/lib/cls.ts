@@ -81,3 +81,33 @@ export type SerializedRoom = {
   cooling: { code: string; name: string; model: string | null; specs: CoolingSpec }[]
   photos: RoomPhotoFile[]
 }
+
+export type PlanPin = {
+  id: number
+  code: string
+  x: number | null
+  y: number | null
+}
+
+export type PlanRoom = {
+  id: number
+  code: string
+  no: number
+  name: string
+  status: RoomStatus
+  areaSqm: number | null
+  tenant: string | null
+  pin: PlanPin | null
+}
+
+export type SerializedFloorPlan = {
+  code: string
+  label: string
+  level: number
+  planImage: string | null
+  siteCode: string
+  siteName: string
+  buildingCode: string
+  buildingName: string
+  rooms: PlanRoom[]
+}
