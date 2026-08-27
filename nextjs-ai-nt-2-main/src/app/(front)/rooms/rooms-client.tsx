@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -20,20 +21,40 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { STATUS_META, type RoomStatus, type SerializedRoom } from "@/lib/cls";
-import { ImageIcon, MapPin, Ruler, ShieldCheck, Wind } from "lucide-react";
+import {
+  deleteRoomPhoto,
+  updateRoom,
+  updateRoomSecurity,
+  uploadRoomPhoto,
+  type SecurityInput,
+  type UpdateRoomInput,
+} from "./actions";
+import {
+  ImageIcon,
+  MapPin,
+  Pencil,
+  Ruler,
+  ShieldCheck,
+  Trash2,
+  Upload,
+  Wind,
+  X,
+} from "lucide-react";
 
 type Props = {
   rooms: SerializedRoom[];
   initialSite: string;
   initialFloor: string;
+  canEdit: boolean;
 };
 
-export default function RoomsClient({ rooms, initialSite, initialFloor }: Props) {
+export default function RoomsClient({ rooms, initialSite, initialFloor, canEdit }: Props) {
   const [site, setSite] = useState(initialSite);
   const [floor, setFloor] = useState(initialFloor);
   const [status, setStatus] = useState<RoomStatus | "">("");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<SerializedRoom | null>(null);
+  const [editing, setEditing] = useState<SerializedRoom | null>(null);
 
   const sites = useMemo(() => [...new Set(rooms.map((r) => r.siteCode))].sort(), [rooms]);
 
@@ -199,14 +220,38 @@ export default function RoomsClient({ rooms, initialSite, initialFloor }: Props)
 
       <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
         <DialogContent className="sm:max-w-3xl">
-          {selected && <RoomDetail room={selected} />}
+          {selected && (
+            <RoomDetail
+              room={selected}
+              canEdit={canEdit}
+              onEdit={() => {
+                setEditing(selected);
+              }}
+            />
+          )}
         </DialogContent>
       </Dialog>
+
+      {editing && (
+        <EditRoomDialog
+          room={editing}
+          open={!!editing}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </div>
   );
 }
 
-function RoomDetail({ room }: { room: SerializedRoom }) {
+function RoomDetail({
+  room,
+  canEdit,
+  onEdit,
+}: {
+  room: SerializedRoom;
+  canEdit: boolean;
+  onEdit: () => void;
+}) {
   const sec = room.security;
   const specs: [string, string][] = [
     ["พื้นที่", room.areaSqm != null ? `${room.areaSqm} ตร.ม.` : "-"],
@@ -237,6 +282,13 @@ function RoomDetail({ room }: { room: SerializedRoom }) {
           <Badge variant="outline" className={STATUS_META[room.status].badge}>
             {STATUS_META[room.status].label}
           </Badge>
+          <span className="flex-1" />
+          {canEdit && (
+            <Button variant="outline" size="sm" onClick={onEdit}>
+              <Pencil data-icon="inline-start" />
+              แก้ไข
+            </Button>
+          )}
         </div>
         <DialogDescription className="flex flex-wrap items-center gap-x-2 font-mono text-xs">
           {room.code}
@@ -343,3 +395,301 @@ function Section({
     </section>
   );
 }
+
+const STATUS_OPTIONS: RoomStatus[] = ["VACANT", "OCCUPIED", "MAINTENANCE", "RESERVED"];
+
+const ROOM_ERROR_LABEL: Record<string, string> = {
+  unauthorized: "กรุณาเข้าสู่ระบบ",
+  forbidden: "ต้องเป็น Admin/Editor เท่านั้น",
+  "invalid-input": "ข้อมูลไม่ถูกต้อง",
+  "invalid-type": "ไฟล์ต้องเป็นรูปภาพ (jpg/png/webp)",
+  "too-large": "ไฟล์ใหญ่เกิน 10MB",
+  "not-found": "ไม่พบห้องนี้",
+  "server-error": "เกิดข้อผิดพลาด กรุณาลองใหม่",
+};
+
+const selectCls =
+  "h-9 w-full rounded-md border bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring";
+
+function EditRoomDialog({
+  room,
+  open,
+  onClose,
+}: {
+  room: SerializedRoom;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [, startTransition] = useTransition();
+
+  const [name, setName] = useState(room.name);
+  const [status, setStatus] = useState<RoomStatus>(room.status);
+  const [no, setNo] = useState(room.no.toString());
+  const [area, setArea] = useState(room.areaSqm != null ? String(room.areaSqm) : "");
+  const [ceiling, setCeiling] = useState(
+    room.ceilingHeightM != null ? String(room.ceilingHeightM) : ""
+  );
+  const [raisedFloor, setRaisedFloor] = useState(
+    room.raisedFloorCm != null ? String(room.raisedFloorCm) : ""
+  );
+  const [floorLoad, setFloorLoad] = useState(
+    room.floorLoadKgm2 != null ? String(room.floorLoadKgm2) : ""
+  );
+  const [tenant, setTenant] = useState(room.tenant ?? "");
+
+  const sec = room.security;
+  const [cctv, setCctv] = useState(sec?.cctvCount != null ? String(sec.cctvCount) : "");
+  const [accessControl, setAccessControl] = useState(sec?.accessControl ?? "");
+  const [fireSuppression, setFireSuppression] = useState(sec?.fireSuppression ?? "");
+  const [gasPressure, setGasPressure] = useState(sec?.gasPressure ?? "");
+  const [vesda, setVesda] = useState(sec?.vesda ?? "");
+  const [doorLock, setDoorLock] = useState(sec?.doorLockType ?? "");
+  const [firePanel, setFirePanel] = useState(sec?.firePanelBrand ?? "");
+  const [gasTank, setGasTank] = useState(sec?.gasTankCount != null ? String(sec.gasTankCount) : "");
+
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const roomInput = (): UpdateRoomInput => ({
+    id: room.id,
+    name,
+    status,
+    no,
+    areaSqm: area,
+    ceilingHeightM: ceiling,
+    raisedFloorCm: raisedFloor,
+    floorLoadKgm2: floorLoad,
+    tenant,
+  });
+
+  const securityInput = (): SecurityInput => ({
+    roomId: room.id,
+    cctvCount: cctv,
+    accessControl,
+    fireSuppression,
+    gasPressure,
+    vesda,
+    doorLockType: doorLock,
+    firePanelBrand: firePanel,
+    gasTankCount: gasTank,
+  });
+
+  function saveRoom() {
+    setError(null);
+    setSuccess(null);
+    setBusy(true);
+    startTransition(async () => {
+      const [r1, r2] = await Promise.all([
+        updateRoom(roomInput()),
+        updateRoomSecurity(securityInput()),
+      ]);
+      setBusy(false);
+      if (!r1.ok && r1.error) return setError(r1.error);
+      if (!r2.ok && r2.error) return setError(r2.error);
+      setSuccess("บันทึกข้อมูลห้องเรียบร้อย");
+    });
+  }
+
+  function upload(files: FileList | null) {
+    const file = files?.[0];
+    if (!file) return;
+    setError(null);
+    setSuccess(null);
+    setBusy(true);
+    startTransition(async () => {
+      const res = await uploadRoomPhoto(room.code, file);
+      setBusy(false);
+      if (!res.ok) return setError(res.error ?? "server-error");
+      setSuccess("อัปโหลดรูปเรียบร้อย");
+    });
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  function removePhoto(url: string) {
+    const name = url.split("/").pop() ?? "";
+    if (!window.confirm("ลบรูปนี้แน่ใจหรือไม่?")) return;
+    setError(null);
+    setSuccess(null);
+    setBusy(true);
+    startTransition(async () => {
+      const res = await deleteRoomPhoto(room.code, name);
+      setBusy(false);
+      if (!res.ok) return setError(res.error ?? "server-error");
+      setSuccess("ลบรูปเรียบร้อย");
+    });
+  }
+
+  const label = (text: string) => (
+    <Label className="text-xs leading-none text-muted-foreground">{text}</Label>
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>แก้ไข: {room.name}</DialogTitle>
+          <DialogDescription className="font-mono text-xs">{room.code}</DialogDescription>
+        </DialogHeader>
+
+        {error && (
+          <p className="text-sm font-medium text-destructive">
+            {ROOM_ERROR_LABEL[error] ?? "เกิดข้อผิดพลาด"}
+          </p>
+        )}
+        {success && <p className="text-sm font-medium text-emerald-600">{success}</p>}
+
+        <div className="space-y-5">
+          <section>
+            <h3 className="mb-3 text-sm font-semibold">ข้อมูลห้อง</h3>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div className="col-span-2 space-y-1 sm:col-span-1">
+                {label("ลำดับ (no.)")}
+                <Input
+                  type="number"
+                  value={no}
+                  onChange={(e) => setNo(e.target.value)}
+                  min={0}
+                />
+              </div>
+              <div className="col-span-2 space-y-1 sm:col-span-1">
+                {label("สถานะ")}
+                <select
+                  className={selectCls}
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as RoomStatus)}
+                >
+                  {STATUS_OPTIONS.map((s) => (
+                    <option key={s} value={s}>
+                      {STATUS_META[s].label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-span-2 space-y-1 sm:col-span-1">
+                {label("ชื่อห้อง")}
+                <Input value={name} onChange={(e) => setName(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                {label("พื้นที่ (ตร.ม.)")}
+                <Input type="number" value={area} onChange={(e) => setArea(e.target.value)} min={0} step="any" />
+              </div>
+              <div className="space-y-1">
+                {label("ความสูงเพดาน (ม.)")}
+                <Input type="number" value={ceiling} onChange={(e) => setCeiling(e.target.value)} min={0} step="any" />
+              </div>
+              <div className="space-y-1">
+                {label("Raised Floor (ซม.)")}
+                <Input type="number" value={raisedFloor} onChange={(e) => setRaisedFloor(e.target.value)} min={0} step="any" />
+              </div>
+              <div className="space-y-1">
+                {label("Floor Load (กก./ตร.ม.)")}
+                <Input type="number" value={floorLoad} onChange={(e) => setFloorLoad(e.target.value)} min={0} step="any" />
+              </div>
+              <div className="col-span-2 space-y-1">
+                {label("ผู้ถือครอง/ผู้เช่า")}
+                <Input value={tenant} onChange={(e) => setTenant(e.target.value)} />
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold">
+              <ShieldCheck className="size-4 text-primary" /> ระบบความปลอดภัย
+            </h3>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div className="space-y-1">
+                {label("กล้อง CCTV")}
+                <Input type="number" value={cctv} onChange={(e) => setCctv(e.target.value)} min={0} />
+              </div>
+              <div className="space-y-1">
+                {label("Access Control")}
+                <Input value={accessControl} onChange={(e) => setAccessControl(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                {label("ระบบดับเพลิง")}
+                <Input value={fireSuppression} onChange={(e) => setFireSuppression(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                {label("แรงดันก๊าซ")}
+                <Input value={gasPressure} onChange={(e) => setGasPressure(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                {label("VESDA")}
+                <Input value={vesda} onChange={(e) => setVesda(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                {label("กลอนประตู")}
+                <Input value={doorLock} onChange={(e) => setDoorLock(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                {label("Fire Panel")}
+                <Input value={firePanel} onChange={(e) => setFirePanel(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                {label("ถังก๊าซ (จำนวน)")}
+                <Input type="number" value={gasTank} onChange={(e) => setGasTank(e.target.value)} min={0} />
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold">
+              <ImageIcon className="size-4 text-primary" /> ภาพถ่าย ({room.photos.length})
+            </h3>
+            <div className="mb-3 flex items-center gap-2">
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(e) => upload(e.target.files)}
+              />
+              <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={busy}>
+                <Upload data-icon="inline-start" />
+                อัปโหลดรูป
+              </Button>
+            </div>
+            {room.photos.length === 0 ? (
+              <p className="text-sm text-muted-foreground">ยังไม่มีภาพถ่าย</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                {room.photos.map((p) => (
+                  <div key={p.url} className="group relative overflow-hidden rounded-md border">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={p.url}
+                      alt={p.name}
+                      loading="lazy"
+                      className="aspect-video w-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      aria-label="ลบรูป"
+                      onClick={() => removePhoto(p.url)}
+                      className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white opacity-0 transition-opacity hover:bg-black/80 group-hover:opacity-100"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t pt-4">
+          <Button type="button" variant="ghost" onClick={onClose}>
+            <X data-icon="inline-start" />
+            ปิด
+          </Button>
+          <Button type="button" onClick={saveRoom} disabled={busy}>
+            {busy ? "กำลังบันทึก..." : "บันทึก"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+

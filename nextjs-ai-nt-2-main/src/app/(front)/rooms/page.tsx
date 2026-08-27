@@ -1,8 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { connection } from "next/server";
+import { headers } from "next/headers";
 import type { Metadata } from "next";
 import prisma from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import type {
   CoolingSpec,
   RoomStatus,
@@ -37,14 +39,25 @@ export default async function RoomsPage({
   const initialSite = typeof params.site === "string" ? params.site : "";
   const initialFloor = typeof params.floor === "string" ? params.floor : "";
 
-  const rooms = await prisma.room.findMany({
-    orderBy: { code: "asc" },
-    include: {
-      floor: { include: { building: { include: { site: true } } } },
-      security: true,
-      assets: { where: { category: "COOLING" }, orderBy: { code: "asc" } },
-    },
-  });
+  const [rooms, session] = await Promise.all([
+    prisma.room.findMany({
+      orderBy: { code: "asc" },
+      include: {
+        floor: { include: { building: { include: { site: true } } } },
+        security: true,
+        assets: { where: { category: "COOLING" }, orderBy: { code: "asc" } },
+      },
+    }),
+    auth.api.getSession({ headers: await headers() }).catch(() => null),
+  ]);
+
+  let canEdit = false;
+  if (session?.user?.id) {
+    const user = await prisma.user
+      .findUnique({ where: { id: session.user.id }, select: { role: true } })
+      .catch(() => null);
+    canEdit = user?.role === "ADMIN" || user?.role === "EDITOR";
+  }
 
   const serialized: SerializedRoom[] = rooms.map((r) => ({
     id: r.id,
@@ -100,6 +113,7 @@ export default async function RoomsPage({
         rooms={serialized}
         initialSite={initialSite}
         initialFloor={initialFloor}
+        canEdit={canEdit}
       />
     </div>
   );
