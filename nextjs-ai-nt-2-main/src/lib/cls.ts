@@ -173,3 +173,49 @@ export type SerializedRoomSecurityRow = {
   doorLockType: string | null
   firePanelBrand: string | null
 }
+
+export type SerializedSite = {
+  id: number
+  code: string
+  name: string
+  province: string
+  lat: number | null
+  lng: number | null
+  buildingCount: number
+  floorCount: number
+  roomCount: number
+}
+
+export type SerializedBuilding = {
+  id: number
+  code: string
+  name: string
+  siteCode: string
+  siteName: string
+  floorCount: number
+  roomCount: number
+}
+
+export type SerializedFloor = {
+  id: number
+  code: string
+  level: number
+  label: string
+  planImage: string | null
+  buildingCode: string
+  buildingName: string
+  siteCode: string
+  roomCount: number
+}
+
+export type SerializedLocationRoom = {
+  id: number
+  code: string
+  no: number
+  name: string
+  status: RoomStatus
+  areaSqm: number | null
+  tenant: string | null
+  floorCode: string
+  floorLabel: string
+}

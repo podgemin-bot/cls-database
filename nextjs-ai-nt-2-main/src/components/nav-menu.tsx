@@ -28,6 +28,11 @@ export const NavMenu = ({
       </NavigationMenuItem>
       <NavigationMenuItem>
         <NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>
+          <Link href="/locations">สถานที่</Link>
+        </NavigationMenuLink>
+      </NavigationMenuItem>
+      <NavigationMenuItem>
+        <NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>
           <Link href="/floorplan">ผังชั้น</Link>
         </NavigationMenuLink>
       </NavigationMenuItem>
