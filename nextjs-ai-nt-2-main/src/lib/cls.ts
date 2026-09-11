@@ -2,31 +2,35 @@ export type RoomStatus = "VACANT" | "OCCUPIED" | "MAINTENANCE" | "RESERVED"
 
 export const STATUS_META: Record<
   RoomStatus,
-  { label: string; badge: string; dot: string; bar: string }
+  { label: string; badge: string; dot: string; bar: string; pin: string }
 > = {
   VACANT: {
     label: "ว่าง",
     badge: "bg-emerald-100 text-emerald-800 border-emerald-200",
     dot: "bg-emerald-500",
     bar: "bg-emerald-500",
+    pin: "bg-emerald-500/60",
   },
   OCCUPIED: {
     label: "มีผู้ใช้งาน",
     badge: "bg-sky-100 text-sky-800 border-sky-200",
     dot: "bg-sky-500",
     bar: "bg-sky-500",
+    pin: "bg-sky-500/60",
   },
   MAINTENANCE: {
     label: "ซ่อมบำรุง",
     badge: "bg-red-100 text-red-800 border-red-200",
     dot: "bg-red-500",
     bar: "bg-red-500",
+    pin: "bg-red-500/60",
   },
   RESERVED: {
     label: "จอง",
     badge: "bg-amber-100 text-amber-800 border-amber-200",
     dot: "bg-amber-500",
     bar: "bg-amber-500",
+    pin: "bg-amber-500/60",
   },
 }
 
@@ -122,6 +126,7 @@ export type SerializedPowerAsset = {
   status: string | null
   specType: string | null
   capacity: string | null
+  floorId: number | null
   siteCode: string | null
   floorLabel: string | null
 }
@@ -138,6 +143,7 @@ export type SerializedCoolingAsset = {
   unitsReady: number | null
   unitsDown: number | null
   efficiencyPct: number | null
+  roomId: number | null
   siteCode: string | null
   roomCode: string | null
 }
@@ -152,10 +158,28 @@ export type SerializedCertificate = {
   issuedAt: string | null
   expiresAt: string | null
   detail: string | null
+  siteId: number
   siteCode: string
   siteName: string
   buildingCode: string | null
   roomCode: string | null
+}
+
+export type EngFloorOption = {
+  id: number
+  code: string
+  label: string
+  level: number
+  buildingCode: string
+  buildingName: string
+  rooms: { id: number; code: string; name: string }[]
+}
+
+export type EngHierarchySite = {
+  id: number
+  code: string
+  name: string
+  floors: EngFloorOption[]
 }
 
 export type SerializedRoomSecurityRow = {

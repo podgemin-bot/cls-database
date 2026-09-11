@@ -269,11 +269,16 @@ export default function FloorplanClient({
                       onClick={(e) => onPinClick(e, r.id)}
                       className={`group absolute z-10 -translate-x-1/2 -translate-y-full focus-visible:outline-none`}
                     >
-                      <span
-                        className={`block size-3.5 rounded-full border-2 border-white shadow-md transition-transform group-hover:scale-125 ${STATUS_META[r.status].dot} ${
-                          isActive ? "ring-2 ring-primary ring-offset-2" : ""
-                        }`}
-                      />
+                      <span className="relative block size-6 transition-transform group-hover:scale-125">
+                        <span
+                          className={`absolute inset-0 -rotate-45 rounded-[50%_50%_50%_0] border-2 border-white shadow-md ${STATUS_META[r.status].pin} ${
+                            isActive ? "ring-2 ring-primary ring-offset-1" : ""
+                          }`}
+                        />
+                        <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold leading-none text-white">
+                          {r.no}
+                        </span>
+                      </span>
                       <span className="pointer-events-none absolute bottom-full left-1/2 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md border bg-popover px-2 py-0.5 text-[11px] text-popover-foreground shadow-md group-hover:block">
                         {r.code} · {r.name}
                       </span>

@@ -124,7 +124,7 @@ export default function LoginForm() {
         </Button>
         <p className="text-center text-sm text-muted-foreground">
           ยังไม่มีบัญชี?{" "}
-          <a href="/register" className="underline underline-offset-4 hover:text-primary">
+          <a href="/signup" className="underline underline-offset-4 hover:text-primary">
             สมัครสมาชิก
           </a>
         </p>

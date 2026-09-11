@@ -1,7 +1,10 @@
 import { connection } from "next/server";
+import { headers } from "next/headers";
 import type { Metadata } from "next";
 import prisma from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import type {
+  EngHierarchySite,
   SerializedCertificate,
   SerializedCoolingAsset,
   SerializedPowerAsset,
@@ -19,7 +22,7 @@ const ISO = (d: Date | null): string | null =>
 export default async function EngineeringPage() {
   await connection();
 
-  const [assets, certs, rooms] = await Promise.all([
+  const [assets, certs, rooms, sites, session] = await Promise.all([
     prisma.asset.findMany({
       orderBy: { code: "asc" },
       include: { floor: { include: { building: { include: { site: true } } } }, room: { select: { code: true } } },
@@ -32,7 +35,47 @@ export default async function EngineeringPage() {
       orderBy: { code: "asc" },
       include: { floor: { include: { building: { include: { site: true } } } }, security: true },
     }),
+    prisma.site.findMany({
+      orderBy: { code: "asc" },
+      include: {
+        buildings: {
+          orderBy: { code: "asc" },
+          include: {
+            floors: {
+              orderBy: { level: "asc" },
+              include: { rooms: { orderBy: { no: "asc" }, select: { id: true, code: true, name: true } } },
+            },
+          },
+        },
+      },
+    }),
+    auth.api.getSession({ headers: await headers() }).catch(() => null),
   ]);
+
+  let canEdit = false;
+  if (session?.user?.id) {
+    const user = await prisma.user
+      .findUnique({ where: { id: session.user.id }, select: { role: true } })
+      .catch(() => null);
+    canEdit = user?.role === "ADMIN" || user?.role === "EDITOR";
+  }
+
+  const hierarchy: EngHierarchySite[] = sites.map((s) => ({
+    id: s.id,
+    code: s.code,
+    name: s.name,
+    floors: s.buildings.flatMap((b) =>
+      b.floors.map((f) => ({
+        id: f.id,
+        code: f.code,
+        label: f.label,
+        level: f.level,
+        buildingCode: b.code,
+        buildingName: b.name,
+        rooms: f.rooms.map((r) => ({ id: r.id, code: r.code, name: r.name })),
+      }))
+    ),
+  }));
 
   const power: SerializedPowerAsset[] = assets
     .filter((a) => a.category === "POWER")
@@ -46,6 +89,7 @@ export default async function EngineeringPage() {
       status: a.status,
       specType: (a.specs as { type?: string | null } | null)?.type ?? null,
       capacity: (a.specs as { capacity?: string | null } | null)?.capacity ?? null,
+      floorId: a.floorId,
       siteCode: a.floor?.building.site.code ?? null,
       floorLabel: a.floor?.label ?? null,
     }));
@@ -73,6 +117,7 @@ export default async function EngineeringPage() {
         unitsReady: s.unitsReady ?? null,
         unitsDown: s.unitsDown ?? null,
         efficiencyPct: s.efficiencyPct ?? null,
+        roomId: a.roomId,
         siteCode: a.floor?.building.site.code ?? a.room?.code?.split("-")[0] ?? null,
         roomCode: a.room?.code ?? null,
       };
@@ -88,6 +133,7 @@ export default async function EngineeringPage() {
     issuedAt: ISO(c.issuedAt),
     expiresAt: ISO(c.expiresAt),
     detail: c.detail,
+    siteId: c.siteId,
     siteCode: c.site.code,
     siteName: c.site.name,
     buildingCode: c.buildingCode,
@@ -131,6 +177,8 @@ export default async function EngineeringPage() {
         certificates={certificates}
         security={securityRows}
         totals={{ power: totalPower, cooling: totalCooling, certs: totalCerts, security: totalSecurity }}
+        canEdit={canEdit}
+        hierarchy={hierarchy}
       />
     </div>
   );

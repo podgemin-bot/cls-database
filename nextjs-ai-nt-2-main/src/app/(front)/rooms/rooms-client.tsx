@@ -160,8 +160,10 @@ export default function RoomsClient({ rooms, initialSite, initialFloor, canEdit 
             <TableRow className="bg-muted/50">
               <TableHead>รหัสห้อง</TableHead>
               <TableHead>ชื่อห้อง</TableHead>
-              <TableHead>สถานี / ชั้น</TableHead>
               <TableHead className="text-right">พื้นที่ (ตร.ม.)</TableHead>
+              <TableHead className="text-right">ความสูง (ม.)</TableHead>
+              <TableHead className="text-right">Raised Floor (ซม.)</TableHead>
+              <TableHead className="text-right">Floor Load (กก./ม²)</TableHead>
               <TableHead>สถานะ</TableHead>
               <TableHead className="text-center">รูป</TableHead>
               <TableHead className="w-10" />
@@ -170,7 +172,7 @@ export default function RoomsClient({ rooms, initialSite, initialFloor, canEdit 
           <TableBody>
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">
                   ไม่พบห้องที่ตรงเงื่อนไข
                 </TableCell>
               </TableRow>
@@ -183,11 +185,17 @@ export default function RoomsClient({ rooms, initialSite, initialFloor, canEdit 
               >
                 <TableCell className="font-mono text-xs font-medium">{r.code}</TableCell>
                 <TableCell className="font-medium">{r.name}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {r.siteCode} · {r.floorLabel}
-                </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {r.areaSqm ?? "-"}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {r.ceilingHeightM ?? "-"}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {r.raisedFloorCm ?? "-"}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {r.floorLoadKgm2 ?? "-"}
                 </TableCell>
                 <TableCell>
                   <Badge variant="outline" className={STATUS_META[r.status].badge}>

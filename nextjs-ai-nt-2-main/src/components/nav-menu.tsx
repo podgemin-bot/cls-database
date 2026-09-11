@@ -12,8 +12,12 @@ import {
 
 export const NavMenu = ({
   isAdmin = false,
+  isLoggedIn = false,
   ...props
-}: ComponentProps<typeof NavigationMenu> & { isAdmin?: boolean }) => (
+}: ComponentProps<typeof NavigationMenu> & {
+  isAdmin?: boolean;
+  isLoggedIn?: boolean;
+}) => (
   <NavigationMenu {...props}>
     <NavigationMenuList className="data-[orientation=vertical]:-ms-2 data-[orientation=vertical]:flex-col data-[orientation=vertical]:items-start data-[orientation=vertical]:justify-start">
       <NavigationMenuItem>
@@ -41,6 +45,13 @@ export const NavMenu = ({
           <Link href="/engineering">ระบบวิศวกรรม</Link>
         </NavigationMenuLink>
       </NavigationMenuItem>
+      {isLoggedIn && (
+        <NavigationMenuItem>
+          <NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>
+            <Link href="/profile">โปรไฟล์</Link>
+          </NavigationMenuLink>
+        </NavigationMenuItem>
+      )}
       {isAdmin && (
         <NavigationMenuItem>
           <NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>
