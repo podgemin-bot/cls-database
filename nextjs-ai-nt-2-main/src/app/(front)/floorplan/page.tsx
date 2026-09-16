@@ -1,14 +1,29 @@
+import fs from "node:fs";
+import path from "node:path";
 import { headers } from "next/headers";
 import { connection } from "next/server";
 import type { Metadata } from "next";
 import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import type { RoomStatus, SerializedFloorPlan } from "@/lib/cls";
+import type { RoomPhotoFile, RoomStatus, SerializedFloorPlan } from "@/lib/cls";
 import FloorplanClient from "./floorplan-client";
 
 export const instant = false;
 
 export const metadata: Metadata = { title: "ผังชั้น" };
+
+function listRoomPhotos(code: string): RoomPhotoFile[] {
+  const dir = path.join(process.cwd(), "public", "storage", "photos", code);
+  try {
+    return fs
+      .readdirSync(dir)
+      .filter((f) => /\.(jpg|jpeg|png)$/i.test(f))
+      .sort()
+      .map((f) => ({ url: `/storage/photos/${code}/${f}`, name: f }));
+  } catch {
+    return [];
+  }
+}
 
 export default async function FloorPlanPage({
   searchParams,
@@ -44,6 +59,13 @@ export default async function FloorPlanPage({
       select: { role: true },
     });
     canEdit = user?.role === "ADMIN" || user?.role === "EDITOR";
+  }
+
+  const photosByRoom: Record<number, RoomPhotoFile[]> = {};
+  for (const f of floors) {
+    for (const r of f.rooms) {
+      photosByRoom[r.id] = listRoomPhotos(r.code);
+    }
   }
 
   const serialized: SerializedFloorPlan[] = floors.map((f) => ({
@@ -85,6 +107,7 @@ export default async function FloorPlanPage({
       </div>
       <FloorplanClient
         floors={serialized}
+        photos={photosByRoom}
         initialFloor={initialFloor}
         canEdit={canEdit}
       />

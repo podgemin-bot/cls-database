@@ -13,17 +13,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  STATUS_META,
-  type PlanRoom,
-  type RoomStatus,
-  type SerializedFloorPlan,
-} from "@/lib/cls";
+import { STATUS_META, type PlanRoom, type RoomPhotoFile, type RoomStatus, type SerializedFloorPlan } from "@/lib/cls";
 import { savePin } from "./actions";
-import { Crosshair, MapPin, PencilLine, Ruler } from "lucide-react";
+import { Lightbox } from "@/components/lightbox";
+import { Camera, Crosshair, MapPin, PencilLine, Ruler } from "lucide-react";
 
 type Props = {
   floors: SerializedFloorPlan[];
+  photos: Record<number, RoomPhotoFile[]>;
   initialFloor: string;
   canEdit: boolean;
 };
@@ -47,6 +44,7 @@ function resolvePin(
 
 export default function FloorplanClient({
   floors,
+  photos,
   initialFloor,
   canEdit,
 }: Props) {
@@ -79,6 +77,7 @@ export default function FloorplanClient({
   const [, startTransition] = useTransition();
 
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
+  const [lightbox, setLightbox] = useState<{ images: RoomPhotoFile[]; index: number } | null>(null);
 
   const siteFloors = useMemo(
     () => floors.filter((f) => f.siteCode === siteCode),
@@ -404,35 +403,76 @@ export default function FloorplanClient({
                 </DialogDescription>
               </DialogHeader>
 
-              <dl className="grid grid-cols-2 gap-x-6 gap-y-2">
-                <div>
-                  <dt className="text-xs text-muted-foreground">พื้นที่</dt>
-                  <dd className="text-sm font-medium">
-                    {selectedRoom.areaSqm != null ? `${selectedRoom.areaSqm} ตร.ม.` : "-"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">ผู้ถือครอง/ผู้เช่า</dt>
-                  <dd className="text-sm font-medium">{selectedRoom.tenant ?? "-"}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">หมุดบนผัง</dt>
-                  <dd className="font-mono text-sm font-medium">
-                    {selectedRoom.pin?.code ?? "ยังไม่วาง"}
-                  </dd>
-                </div>
-              </dl>
+              <div className="flex flex-col items-start gap-4">
+                <dl className="grid w-full grid-cols-2 gap-x-6 gap-y-2">
+                  <div>
+                    <dt className="text-xs text-muted-foreground">พื้นที่</dt>
+                    <dd className="text-sm font-medium">
+                      {selectedRoom.areaSqm != null ? `${selectedRoom.areaSqm} ตร.ม.` : "-"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">ผู้ถือครอง/ผู้เช่า</dt>
+                    <dd className="text-sm font-medium">{selectedRoom.tenant ?? "-"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">หมุดบนผัง</dt>
+                    <dd className="font-mono text-sm font-medium">
+                      {selectedRoom.pin?.code ?? "ยังไม่วาง"}
+                    </dd>
+                  </div>
+                </dl>
 
-              <Button asChild variant="outline" size="sm" className="w-fit">
-                <Link href={`/rooms?site=${floor?.siteCode ?? ""}&floor=${floor?.code ?? ""}`}>
-                  <Ruler data-icon="inline-start" />
-                  ดูข้อมูลทั้งหมดในหน้าห้อง
-                </Link>
-              </Button>
+                {(() => {
+                  const roomPhotos = photos[selectedRoom.id] ?? [];
+                  if (roomPhotos.length === 0) return null;
+                  return (
+                    <div className="w-full">
+                      <h4 className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                        <Camera className="size-3.5 text-primary" />
+                        ภาพถ่าย ({roomPhotos.length})
+                      </h4>
+                      <div className="grid grid-cols-3 gap-2">
+                        {roomPhotos.map((p, i) => (
+                          <button
+                            key={p.url}
+                            type="button"
+                            onClick={() => setLightbox({ images: roomPhotos, index: i })}
+                            className="group relative overflow-hidden rounded-md border"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={p.url}
+                              alt={`${selectedRoom.name} - ${p.name}`}
+                              loading="lazy"
+                              className="aspect-video w-full object-cover transition-transform group-hover:scale-105"
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <Button asChild variant="outline" size="sm" className="w-fit">
+                  <Link href={`/rooms?site=${floor?.siteCode ?? ""}&floor=${floor?.code ?? ""}`}>
+                    <Ruler data-icon="inline-start" />
+                    ดูข้อมูลทั้งหมดในหน้าห้อง
+                  </Link>
+                </Button>
+              </div>
             </>
           )}
         </DialogContent>
       </Dialog>
+
+      <Lightbox
+        key={lightbox?.index ?? 0}
+        images={lightbox?.images ?? []}
+        initialIndex={lightbox?.index ?? 0}
+        open={!!lightbox}
+        onClose={() => setLightbox(null)}
+      />
     </div>
   );
 }
