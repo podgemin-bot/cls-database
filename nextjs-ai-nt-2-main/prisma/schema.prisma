@@ -107,6 +107,7 @@ model Asset {
   brand      String?       @db.VarChar(80)
   model      String?       @db.VarChar(120)
   status     String?       @db.VarChar(60)
+  note       String?       @db.Text
   specs      Json?
   roomId     Int?
   floorId    Int?

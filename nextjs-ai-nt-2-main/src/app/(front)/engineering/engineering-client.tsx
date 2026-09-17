@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -64,13 +65,34 @@ type TabKey = "power" | "cooling" | "certs" | "security";
 
 const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: "power", label: "Power System", icon: <Zap className="size-4" /> },
-  { key: "cooling", label: "Precision AC", icon: <Wind className="size-4" /> },
+  { key: "cooling", label: "Cooling", icon: <Wind className="size-4" /> },
   { key: "certs", label: "ใบรับรอง", icon: <FileCheck2 className="size-4" /> },
   { key: "security", label: "ความปลอดภัย", icon: <ShieldCheck className="size-4" /> },
 ];
 
 const selectCls =
   "h-9 rounded-md border bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring";
+
+const STATUS_ORDER: string[] = ["Active", "Standby", "Maintenance", "Check", "แจ้งเตือน"];
+
+const POWER_STATUS_OPTIONS = ["Active", "Standby", "Maintenance"];
+
+const COOLING_STATUS_OPTIONS = ["Active", "Check"];
+
+const STATUS_OPTION_LABEL: Record<string, string> = {
+  Active: "Active — ปกติ",
+  Standby: "Standby — สำรอง",
+  Maintenance: "Maintenance — ซ่อมบำรุง",
+  Check: "Check — ตรวจสอบ",
+};
+
+const ASSET_STATUS_META: Record<string, { label: string; badge: string; alert?: boolean }> = {
+  Active: { label: "ปกติ", badge: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+  Standby: { label: "สำรอง", badge: "bg-amber-100 text-amber-800 border-amber-200" },
+  Maintenance: { label: "ซ่อมบำรุง", badge: "bg-red-100 text-red-800 border-red-200", alert: true },
+  Check: { label: "ตรวจสอบ", badge: "bg-sky-100 text-sky-800 border-sky-200" },
+  แจ้งเตือน: { label: "แจ้งเตือน", badge: "bg-red-100 text-red-800 border-red-200", alert: true },
+};
 
 const ENG_ERROR_LABEL: Record<string, string> = {
   unauthorized: "กรุณาเข้าสู่ระบบ",
@@ -85,7 +107,7 @@ type PowerOrCooling = SerializedPowerAsset | SerializedCoolingAsset;
 
 type AssetDialogState =
   | { mode: "create"; category: AssetCategory }
-  | { mode: "edit"; asset: PowerOrCooling };
+  | { mode: "edit"; category: AssetCategory; asset: PowerOrCooling };
 
 type CertDialogState = { mode: "create" } | { mode: "edit"; cert: SerializedCertificate };
 
@@ -100,7 +122,7 @@ export default function EngineeringClient({
 }: Props) {
   const [tab, setTab] = useState<TabKey>("power");
   const [site, setSite] = useState("");
-  const [alertOnly, setAlertOnly] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [assetDialog, setAssetDialog] = useState<AssetDialogState | null>(null);
   const [certDialog, setCertDialog] = useState<CertDialogState | null>(null);
   const [, startTransition] = useTransition();
@@ -108,6 +130,20 @@ export default function EngineeringClient({
   const powerSites = useMemo(
     () =>
       [...new Set(power.map((a) => a.siteCode).filter((x): x is string => !!x))].sort(),
+    [power]
+  );
+
+  const powerStatuses = useMemo(
+    () =>
+      [
+        ...new Set(
+          power.map((a) => a.status).filter((x): x is string => !!x)
+        ),
+      ].sort((a, b) => {
+        const ia = STATUS_ORDER.indexOf(a);
+        const ib = STATUS_ORDER.indexOf(b);
+        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+      }),
     [power]
   );
   const coolingSites = useMemo(
@@ -127,9 +163,9 @@ export default function EngineeringClient({
       power.filter(
         (a) =>
           (!site || a.siteCode === site) &&
-          (!alertOnly || (a.status ?? "").toLowerCase().includes("แจ้งเตือน"))
+          (statusFilter.length === 0 || (a.status != null && statusFilter.includes(a.status)))
       ),
-    [power, site, alertOnly]
+    [power, site, statusFilter]
   );
 
   const filteredCooling = useMemo(
@@ -174,6 +210,7 @@ export default function EngineeringClient({
             onClick={() => {
               setTab(t.key);
               setSite("");
+              setStatusFilter([]);
             }}
           >
             {t.icon}
@@ -203,15 +240,36 @@ export default function EngineeringClient({
             ))}
           </select>
         )}
-        {tab === "power" && (
-          <label className="inline-flex items-center gap-1.5 text-sm">
-            <input
-              type="checkbox"
-              checked={alertOnly}
-              onChange={(e) => setAlertOnly(e.target.checked)}
-            />
-            เฉพาะอุปกรณ์แจ้งเตือน
-          </label>
+        {tab === "power" && powerStatuses.length > 0 && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="text-sm text-muted-foreground">สถานะ:</span>
+            {powerStatuses.map((s) => (
+              <label
+                key={s}
+                className="inline-flex cursor-pointer items-center gap-1.5 text-sm"
+              >
+                <input
+                  type="checkbox"
+                  checked={statusFilter.includes(s)}
+                  onChange={() =>
+                    setStatusFilter((prev) =>
+                      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
+                    )
+                  }
+                />
+                {ASSET_STATUS_META[s]?.label ?? s}
+              </label>
+            ))}
+            {statusFilter.length > 0 && (
+              <button
+                type="button"
+                className="text-xs font-medium text-primary underline-offset-2 hover:underline"
+                onClick={() => setStatusFilter([])}
+              >
+                ล้างตัวกรอง
+              </button>
+            )}
+          </div>
         )}
         {canEdit && tab === "power" && (
           <Button
@@ -228,7 +286,7 @@ export default function EngineeringClient({
             onClick={() => setAssetDialog({ mode: "create", category: "COOLING" })}
           >
             <Plus data-icon="inline-start" />
-            เพิ่ม AC
+            เพิ่ม Cooling
           </Button>
         )}
         {canEdit && tab === "certs" && (
@@ -251,13 +309,13 @@ export default function EngineeringClient({
 
       {tab === "power" && (
         <PowerTable rows={filteredPower} canEdit={canEdit}
-          onEdit={(a) => setAssetDialog({ mode: "edit", asset: a })}
+          onEdit={(a) => setAssetDialog({ mode: "edit", category: "POWER", asset: a })}
           onDelete={askDeleteAsset}
         />
       )}
       {tab === "cooling" && (
         <CoolingTable rows={filteredCooling} canEdit={canEdit}
-          onEdit={(a) => setAssetDialog({ mode: "edit", asset: a })}
+          onEdit={(a) => setAssetDialog({ mode: "edit", category: "COOLING", asset: a })}
           onDelete={askDeleteAsset}
         />
       )}
@@ -333,52 +391,61 @@ function PowerTable({
         <TableHeader>
           <TableRow className="bg-muted/50">
             <TableHead>รหัส</TableHead>
-            <TableHead>ชื่อ</TableHead>
+            <TableHead>อุปกรณ์</TableHead>
             <TableHead>ประเภท</TableHead>
             <TableHead>ความจุ</TableHead>
+            <TableHead>Load</TableHead>
             <TableHead>ยี่ห้อ</TableHead>
             <TableHead>รุ่น</TableHead>
-            <TableHead>สถานี / ชั้น</TableHead>
+            <TableHead>ตำแหน่งที่ตั้ง</TableHead>
             <TableHead>สถานะ</TableHead>
+            <TableHead>หมายเหตุ</TableHead>
             {canEdit && <TableHead className="w-20" />}
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={canEdit ? 9 : 8} className="py-10 text-center text-muted-foreground">
+              <TableCell colSpan={canEdit ? 11 : 10} className="py-10 text-center text-muted-foreground">
                 ไม่พบอุปกรณ์ที่ตรงเงื่อนไข
               </TableCell>
             </TableRow>
           )}
-          {rows.map((a) => (
-            <TableRow key={a.id}>
-              <TableCell className="font-mono text-xs font-medium">{a.code}</TableCell>
-              <TableCell className="font-medium">{a.name}</TableCell>
-              <TableCell>{a.specType ?? "-"}</TableCell>
-              <TableCell className="tabular-nums">{a.capacity ?? "-"}</TableCell>
-              <TableCell>{a.brand ?? "-"}</TableCell>
-              <TableCell>{a.model ?? "-"}</TableCell>
-              <TableCell className="text-sm text-muted-foreground">
-                {a.siteCode ? `${a.siteCode} · ${a.floorLabel ?? ""}` : "-"}
-              </TableCell>
-              <TableCell>
-                {a.status ? (
-                  <Badge variant="destructive" className="gap-1">
-                    <Flame className="size-3" />
-                    {a.status}
-                  </Badge>
-                ) : (
-                  <Badge variant="outline">ปกติ</Badge>
-                )}
-              </TableCell>
-              <ActionCell
-                canEdit={canEdit}
-                onEdit={() => onEdit(a)}
-                onDelete={() => onDelete(a)}
-              />
-            </TableRow>
-          ))}
+          {rows.map((a) => {
+            const statusMeta = ASSET_STATUS_META[a.status ?? ""];
+            return (
+              <TableRow key={a.id}>
+                <TableCell className="font-mono text-xs font-medium">{a.code}</TableCell>
+                <TableCell className="font-medium">{a.name}</TableCell>
+                <TableCell>{a.specType ?? "-"}</TableCell>
+                <TableCell className="tabular-nums">{a.capacity ?? "-"}</TableCell>
+                <TableCell className="tabular-nums">{a.load ?? "-"}</TableCell>
+                <TableCell>{a.brand ?? "-"}</TableCell>
+                <TableCell>{a.model ?? "-"}</TableCell>
+                <TableCell className="font-mono text-xs text-muted-foreground">
+                  {a.roomCode ?? a.floorCode ?? a.siteCode ?? "-"}
+                </TableCell>
+                <TableCell>
+                  {statusMeta ? (
+                    <Badge variant="outline" className={statusMeta.badge}>
+                      {statusMeta.alert && <Flame className="size-3" />}
+                      {statusMeta.label}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline">ไม่ระบุ</Badge>
+                  )}
+                </TableCell>
+                <TableCell className="max-w-48 text-xs text-muted-foreground">
+                  {a.note ? <span className="line-clamp-2">{a.note}</span> : "-"}
+                </TableCell>
+                <ActionCell
+                  canEdit={canEdit}
+                  onEdit={() => onEdit(a)}
+                  onDelete={() => onDelete(a)}
+                />
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>
@@ -403,18 +470,19 @@ function CoolingTable({
           <TableRow className="bg-muted/50">
             <TableHead>รหัส</TableHead>
             <TableHead>ชื่อ</TableHead>
-            <TableHead>รุ่น</TableHead>
+            <TableHead>BTU</TableHead>
             <TableHead className="text-right">BTU รวม</TableHead>
             <TableHead className="text-center">ชุดพร้อมใช้/รวม</TableHead>
             <TableHead className="text-center">ประสิทธิภาพ</TableHead>
             <TableHead>ห้อง / สถานี</TableHead>
+            <TableHead>หมายเหตุ</TableHead>
             {canEdit && <TableHead className="w-20" />}
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={canEdit ? 8 : 7} className="py-10 text-center text-muted-foreground">
+              <TableCell colSpan={canEdit ? 9 : 8} className="py-10 text-center text-muted-foreground">
                 ไม่พบอุปกรณ์ที่ตรงเงื่อนไข
               </TableCell>
             </TableRow>
@@ -423,7 +491,7 @@ function CoolingTable({
             <TableRow key={a.id}>
               <TableCell className="font-mono text-xs font-medium">{a.code}</TableCell>
               <TableCell className="font-medium">{a.name}</TableCell>
-              <TableCell>{a.model ?? "-"}</TableCell>
+              <TableCell className="text-sm">{a.btu ?? "-"}</TableCell>
               <TableCell className="text-right tabular-nums">
                 {a.btuTotal?.toLocaleString() ?? "-"}
               </TableCell>
@@ -444,6 +512,9 @@ function CoolingTable({
               </TableCell>
               <TableCell className="text-sm text-muted-foreground">
                 {a.roomCode ? `${a.roomCode}` : a.siteCode ?? "-"}
+              </TableCell>
+              <TableCell className="max-w-48 text-xs text-muted-foreground">
+                {a.note ? <span className="line-clamp-2">{a.note}</span> : "-"}
               </TableCell>
               <ActionCell
                 canEdit={canEdit}
@@ -664,33 +735,32 @@ const label = (text: string) => (
 
 function initialLocation(hierarchy: EngHierarchySite[], asset?: PowerOrCooling) {
   let site = "";
+  let building = "";
   let floor = "";
-  let room = "";
-  if (!asset) return { site, floor, room };
-  if ("floorId" in asset && asset.floorId != null) {
-    for (const s of hierarchy) {
-      const f = s.floors.find((x) => x.id === asset.floorId);
-      if (f) {
-        site = s.code;
-        floor = String(f.id);
-        break;
-      }
-    }
-  }
-  if ("roomId" in asset && asset.roomId != null) {
-    for (const s of hierarchy) {
-      for (const f of s.floors) {
-        const r = f.rooms.find((x) => x.id === asset.roomId);
-        if (r) {
+  const room = "";
+  if (!asset) return { site, building, floor, room };
+  const floorId = "floorId" in asset ? asset.floorId ?? null : null;
+  const roomId = "roomId" in asset ? asset.roomId ?? null : null;
+  for (const s of hierarchy) {
+    for (const b of s.buildings) {
+      for (const f of b.floors) {
+        if (roomId != null && f.rooms.some((r) => r.id === roomId)) {
+          return {
+            site: s.code,
+            building: String(b.id),
+            floor: String(f.id),
+            room: String(roomId),
+          };
+        }
+        if (floorId != null && f.id === floorId) {
           site = s.code;
+          building = String(b.id);
           floor = String(f.id);
-          room = String(r.id);
-          break;
         }
       }
     }
   }
-  return { site, floor, room };
+  return { site, building, floor, room };
 }
 
 function AssetDialog({
@@ -707,22 +777,29 @@ function AssetDialog({
     dialog.mode === "edit"
       ? (dialog.asset as PowerOrCooling)
       : null;
-  const category: AssetCategory =
-    dialog.mode === "create" ? dialog.category : "roomId" in dialog.asset ? "COOLING" : "POWER";
+  const category: AssetCategory = dialog.category;
   const isCooling = category === "COOLING";
 
-  const initLoc = editing ? initialLocation(hierarchy, editing) : { site: "", floor: "", room: "" };
+  const initLoc = editing ? initialLocation(hierarchy, editing) : { site: "", building: "", floor: "", room: "" };
 
   const [name, setName] = useState(editing?.name ?? "");
-  const [legacyCode, setLegacyCode] = useState(editing?.legacyCode ?? "");
   const [brand, setBrand] = useState((editing && "brand" in editing ? editing.brand : null) ?? "");
-  const [model, setModel] = useState(editing?.model ?? "");
-  const [status, setStatus] = useState((editing && "status" in editing ? editing.status : null) ?? "");
+  const [model, setModel] = useState((editing && "model" in editing ? editing.model : null) ?? "");
+  const [status, setStatus] = useState((editing && "status" in editing ? editing.status : null) ?? "Active");
+  const [note, setNote] = useState(editing?.note ?? "");
   const [specType, setSpecType] = useState(
-    editing && "specType" in editing ? editing.specType ?? "" : ""
+    isCooling
+      ? "Cooling"
+      : (editing && "specType" in editing ? editing.specType ?? "Power System" : "Power System")
   );
   const [capacity, setCapacity] = useState(
     editing && "capacity" in editing ? editing.capacity ?? "" : ""
+  );
+  const [load, setLoad] = useState(
+    editing && "load" in editing ? editing.load ?? "" : ""
+  );
+  const [btu, setBtu] = useState(
+    editing && "btu" in editing ? editing.btu ?? "" : ""
   );
   const [btuTotal, setBtuTotal] = useState(
     editing && "btuTotal" in editing
@@ -761,6 +838,7 @@ function AssetDialog({
   );
 
   const [siteCode, setSiteCode] = useState(initLoc.site);
+  const [buildingId, setBuildingId] = useState(initLoc.building);
   const [floorId, setFloorId] = useState(initLoc.floor);
   const [roomId, setRoomId] = useState(initLoc.room);
   const [newCode, setNewCode] = useState("");
@@ -770,7 +848,9 @@ function AssetDialog({
   const [success, setSuccess] = useState<string | null>(null);
 
   const site = hierarchy.find((s) => s.code === siteCode);
-  const floors = site?.floors ?? [];
+  const buildings = site?.buildings ?? [];
+  const building = buildings.find((b) => b.id === Number(buildingId));
+  const floors = building?.floors ?? [];
   const floor = floors.find((f) => f.id === Number(floorId));
   const rooms = floor?.rooms ?? [];
 
@@ -790,14 +870,16 @@ function AssetDialog({
   const input = (): AssetInput => ({
     category,
     name,
-    legacyCode,
     brand,
     model,
     status,
-    floorId: isCooling ? "" : floorId,
-    roomId: isCooling ? roomId : "",
+    note,
+    floorId,
+    roomId,
     specType,
     capacity,
+    load,
+    btu,
     btuTotal,
     unitsTotal,
     unitsReady,
@@ -810,14 +892,22 @@ function AssetDialog({
     setSuccess(null);
     setBusy(true);
     startTransition(async () => {
-      const res =
-        dialog.mode === "edit"
-          ? await updateAsset(dialog.asset.id, input())
-          : await createAsset(input());
-      setBusy(false);
-      if (!res.ok && res.error) return setError(res.error);
-      setSuccess("บันทึกเรียบร้อย");
-      onClose();
+      try {
+        const res =
+          dialog.mode === "edit"
+            ? await updateAsset(dialog.asset.id, input())
+            : await createAsset(input());
+        if (!res.ok && res.error) {
+          setError(res.error);
+          return;
+        }
+        setSuccess("บันทึกเรียบร้อย");
+        onClose();
+      } catch {
+        setError("server-error");
+      } finally {
+        setBusy(false);
+      }
     });
   }
 
@@ -828,7 +918,7 @@ function AssetDialog({
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            {dialog.mode === "edit" ? "แก้ไขอุปกรณ์" : isCooling ? "เพิ่ม Precision AC" : "เพิ่ม Power System"}
+            {dialog.mode === "edit" ? "แก้ไขอุปกรณ์" : isCooling ? "เพิ่ม Cooling" : "เพิ่ม Power System"}
           </DialogTitle>
           <DialogDescription className="font-mono text-xs">{code || "รหัสจะถูกสร้างอัตโนมัติเมื่อเลือกสถานี"}</DialogDescription>
         </DialogHeader>
@@ -845,39 +935,54 @@ function AssetDialog({
             <h3 className="mb-3 text-sm font-semibold">ข้อมูลอุปกรณ์</h3>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               <div className="col-span-2 space-y-1">
-                {label("รหัสอุปกรณ์ (อัตโนมัติ)")}
+                {label("รหัส (อัตโนมัติ)")}
                 <Input value={code} disabled placeholder="- เลือกสถานี -" />
               </div>
               <div className="col-span-2 space-y-1 sm:col-span-1">
-                {label("Legacy code")}
-                <Input value={legacyCode} onChange={(e) => setLegacyCode(e.target.value)} />
-              </div>
-              <div className="col-span-2 space-y-1 sm:col-span-1">
-                {label("ชื่ออุปกรณ์ *")}
+                {label("อุปกรณ์ *")}
                 <Input value={name} onChange={(e) => setName(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                {label(isCooling ? "ประเภท" : "ประเภท Power System")}
+                <Input
+                  value={specType}
+                  disabled
+                  onChange={(e) => setSpecType(e.target.value)}
+                />
               </div>
               <div className="space-y-1">
                 {label("ยี่ห้อ")}
                 <Input value={brand} onChange={(e) => setBrand(e.target.value)} />
               </div>
-              <div className="space-y-1">
-                {label("รุ่น")}
-                <Input value={model} onChange={(e) => setModel(e.target.value)} />
-              </div>
+              {!isCooling && (
+                <div className="space-y-1">
+                  {label("รุ่น")}
+                  <Input value={model} onChange={(e) => setModel(e.target.value)} />
+                </div>
+              )}
               <div className="space-y-1">
                 {label("สถานะ")}
-                <Input
+                <select
+                  className={selectCls}
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
-                  placeholder="เช่น แจ้งเตือน"
-                />
+                >
+                  {status && !(isCooling ? COOLING_STATUS_OPTIONS : POWER_STATUS_OPTIONS).includes(status) && (
+                    <option value={status}>{status}</option>
+                  )}
+                  {(isCooling ? COOLING_STATUS_OPTIONS : POWER_STATUS_OPTIONS).map((s) => (
+                    <option key={s} value={s}>
+                      {STATUS_OPTION_LABEL[s] ?? s}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </section>
 
           <section>
             <h3 className="mb-3 text-sm font-semibold">ตำแหน่งที่ตั้ง</h3>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className="space-y-1">
                 {label("สถานี *")}
                 <select
@@ -885,6 +990,7 @@ function AssetDialog({
                   value={siteCode}
                   onChange={(e) => {
                     setSiteCode(e.target.value);
+                    setBuildingId("");
                     setFloorId("");
                     setRoomId("");
                   }}
@@ -898,11 +1004,31 @@ function AssetDialog({
                 </select>
               </div>
               <div className="space-y-1">
+                {label("อาคาร *")}
+                <select
+                  className={selectCls}
+                  value={buildingId}
+                  disabled={!siteCode}
+                  onChange={(e) => {
+                    setBuildingId(e.target.value);
+                    setFloorId("");
+                    setRoomId("");
+                  }}
+                >
+                  <option value="">เลือกอาคาร</option>
+                  {buildings.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.code} · {b.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
                 {label("ชั้น *")}
                 <select
                   className={selectCls}
                   value={floorId}
-                  disabled={!siteCode}
+                  disabled={!buildingId}
                   onChange={(e) => {
                     setFloorId(e.target.value);
                     setRoomId("");
@@ -911,97 +1037,110 @@ function AssetDialog({
                   <option value="">เลือกชั้น</option>
                   {floors.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.buildingName} · {f.label}
+                      {f.label}
                     </option>
                   ))}
                 </select>
               </div>
-              {isCooling && (
-                <div className="space-y-1">
-                  {label("ห้อง *")}
-                  <select
-                    className={selectCls}
-                    value={roomId}
-                    disabled={!floorId}
-                    onChange={(e) => setRoomId(e.target.value)}
-                  >
-                    <option value="">เลือกห้อง</option>
-                    {rooms.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.code} · {r.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              <div className="space-y-1">
+                {label("ห้อง")}
+                <select
+                  className={selectCls}
+                  value={roomId}
+                  disabled={!floorId}
+                  onChange={(e) => setRoomId(e.target.value)}
+                >
+                  <option value="">— ไม่ระบุ —</option>
+                  {rooms.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.code} · {r.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </section>
 
-          <section>
-            <h3 className="mb-3 text-sm font-semibold">
-              {isCooling ? "สเปค Precision AC" : "สเปค Power"}
-            </h3>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <div className="space-y-1">
-                {label("ประเภท")}
-                <Input value={specType} onChange={(e) => setSpecType(e.target.value)} />
-              </div>
-              {isCooling ? (
-                <>
-                  <div className="space-y-1">
-                    {label("BTU รวม")}
-                    <Input
-                      type="number"
-                      min={0}
-                      value={btuTotal}
-                      onChange={(e) => setBtuTotal(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    {label("ชุดรวม")}
-                    <Input
-                      type="number"
-                      min={0}
-                      value={unitsTotal}
-                      onChange={(e) => setUnitsTotal(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    {label("ชุดพร้อมใช้")}
-                    <Input
-                      type="number"
-                      min={0}
-                      value={unitsReady}
-                      onChange={(e) => setUnitsReady(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    {label("ชุดเสีย")}
-                    <Input
-                      type="number"
-                      min={0}
-                      value={unitsDown}
-                      onChange={(e) => setUnitsDown(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    {label("ประสิทธิภาพ (%)")}
-                    <Input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={efficiencyPct}
-                      onChange={(e) => setEfficiencyPct(e.target.value)}
-                    />
-                  </div>
-                </>
-              ) : (
+          {isCooling ? (
+            <section>
+              <h3 className="mb-3 text-sm font-semibold">สเปค Cooling</h3>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 <div className="space-y-1">
-                  {label("ความจุ")}
+                  {label("BTU")}
+                  <Input value={btu} onChange={(e) => setBtu(e.target.value)} placeholder="เช่น 242,800 BTU x2" />
+                </div>
+                <div className="space-y-1">
+                  {label("BTU รวม")}
+                  <Input
+                    type="number"
+                    min={0}
+                    value={btuTotal}
+                    onChange={(e) => setBtuTotal(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  {label("ชุดรวม")}
+                  <Input
+                    type="number"
+                    min={0}
+                    value={unitsTotal}
+                    onChange={(e) => setUnitsTotal(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  {label("ชุดพร้อมใช้")}
+                  <Input
+                    type="number"
+                    min={0}
+                    value={unitsReady}
+                    onChange={(e) => setUnitsReady(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  {label("ชุดเสีย")}
+                  <Input
+                    type="number"
+                    min={0}
+                    value={unitsDown}
+                    onChange={(e) => setUnitsDown(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  {label("ประสิทธิภาพ (%)")}
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={efficiencyPct}
+                    onChange={(e) => setEfficiencyPct(e.target.value)}
+                  />
+                </div>
+              </div>
+            </section>
+          ) : (
+            <section>
+              <h3 className="mb-3 text-sm font-semibold">สเปค Power System</h3>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  {label("Capacity")}
                   <Input value={capacity} onChange={(e) => setCapacity(e.target.value)} />
                 </div>
-              )}
-            </div>
+                <div className="space-y-1">
+                  {label("Load")}
+                  <Input value={load} onChange={(e) => setLoad(e.target.value)} />
+                </div>
+              </div>
+            </section>
+          )}
+
+          <section>
+            <h3 className="mb-3 text-sm font-semibold">หมายเหตุ</h3>
+            <Textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="เช่น ติดตั้งเมื่อ ส.ค. 2568, แผน PM ไตรมาสถัดไป, ฯลฯ"
+              rows={3}
+            />
           </section>
         </div>
 
@@ -1070,14 +1209,22 @@ function CertDialog({
     setSuccess(null);
     setBusy(true);
     startTransition(async () => {
-      const res =
-        dialog.mode === "edit"
-          ? await updateCertificate(dialog.cert.id, input())
-          : await createCertificate(input());
-      setBusy(false);
-      if (!res.ok && res.error) return setError(res.error);
-      setSuccess("บันทึกเรียบร้อย");
-      onClose();
+      try {
+        const res =
+          dialog.mode === "edit"
+            ? await updateCertificate(dialog.cert.id, input())
+            : await createCertificate(input());
+        if (!res.ok && res.error) {
+          setError(res.error);
+          return;
+        }
+        setSuccess("บันทึกเรียบร้อย");
+        onClose();
+      } catch {
+        setError("server-error");
+      } finally {
+        setBusy(false);
+      }
     });
   }
 

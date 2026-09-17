@@ -38,6 +38,7 @@ export const STATUS_ORDER: RoomStatus[] = ["VACANT", "OCCUPIED", "MAINTENANCE", 
 
 export type CoolingSpec = {
   type?: string | null
+  btu?: string | null
   btuTotal?: number | null
   unitsTotal?: number | null
   unitsReady?: number | null
@@ -124,11 +125,17 @@ export type SerializedPowerAsset = {
   brand: string | null
   model: string | null
   status: string | null
+  note: string | null
   specType: string | null
   capacity: string | null
+  load: string | null
   floorId: number | null
+  roomId: number | null
   siteCode: string | null
+  buildingCode: string | null
+  floorCode: string | null
   floorLabel: string | null
+  roomCode: string | null
 }
 
 export type SerializedCoolingAsset = {
@@ -138,6 +145,8 @@ export type SerializedCoolingAsset = {
   name: string
   model: string | null
   specType: string | null
+  note: string | null
+  btu: string | null
   btuTotal: number | null
   unitsTotal: number | null
   unitsReady: number | null
@@ -170,16 +179,21 @@ export type EngFloorOption = {
   code: string
   label: string
   level: number
-  buildingCode: string
-  buildingName: string
   rooms: { id: number; code: string; name: string }[]
+}
+
+export type EngHierarchyBuilding = {
+  id: number
+  code: string
+  name: string
+  floors: EngFloorOption[]
 }
 
 export type EngHierarchySite = {
   id: number
   code: string
   name: string
-  floors: EngFloorOption[]
+  buildings: EngHierarchyBuilding[]
 }
 
 export type SerializedRoomSecurityRow = {

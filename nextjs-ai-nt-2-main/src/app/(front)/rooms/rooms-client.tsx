@@ -44,12 +44,20 @@ import {
 type Props = {
   rooms: SerializedRoom[];
   initialSite: string;
+  initialBuilding: string;
   initialFloor: string;
   canEdit: boolean;
 };
 
-export default function RoomsClient({ rooms, initialSite, initialFloor, canEdit }: Props) {
+export default function RoomsClient({
+  rooms,
+  initialSite,
+  initialBuilding,
+  initialFloor,
+  canEdit,
+}: Props) {
   const [site, setSite] = useState(initialSite);
+  const [building, setBuilding] = useState(initialBuilding);
   const [floor, setFloor] = useState(initialFloor);
   const [status, setStatus] = useState<RoomStatus | "">("");
   const [search, setSearch] = useState("");
@@ -58,22 +66,38 @@ export default function RoomsClient({ rooms, initialSite, initialFloor, canEdit 
 
   const sites = useMemo(() => [...new Set(rooms.map((r) => r.siteCode))].sort(), [rooms]);
 
-  const floors = useMemo(
+  const buildings = useMemo(
     () =>
       [
         ...new Map(
           rooms
             .filter((r) => !site || r.siteCode === site)
-            .map((r) => [r.floorCode, { code: r.floorCode, label: r.floorLabel }])
+            .map((r) => [
+              r.buildingCode,
+              { code: r.buildingCode, name: r.buildingName },
+            ])
         ).values(),
       ].sort((a, b) => a.code.localeCompare(b.code)),
     [rooms, site]
   );
 
+  const floors = useMemo(
+    () =>
+      [
+        ...new Map(
+          rooms
+            .filter((r) => (!site || r.siteCode === site) && (!building || r.buildingCode === building))
+            .map((r) => [r.floorCode, { code: r.floorCode, label: r.floorLabel }])
+        ).values(),
+      ].sort((a, b) => a.code.localeCompare(b.code)),
+    [rooms, site, building]
+  );
+
   const filtered = useMemo(
     () =>
-      rooms.filter((r) => {
+rooms.filter((r) => {
         if (site && r.siteCode !== site) return false;
+        if (building && r.buildingCode !== building) return false;
         if (floor && r.floorCode !== floor) return false;
         if (status && r.status !== status) return false;
         if (search) {
@@ -83,7 +107,7 @@ export default function RoomsClient({ rooms, initialSite, initialFloor, canEdit 
         }
         return true;
       }),
-    [rooms, site, floor, status, search]
+    [rooms, site, building, floor, status, search]
   );
 
   const statusCounts = useMemo(() => {
@@ -98,11 +122,12 @@ export default function RoomsClient({ rooms, initialSite, initialFloor, canEdit 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <select
+<select
           className={selectCls}
           value={site}
           onChange={(e) => {
             setSite(e.target.value);
+            setBuilding("");
             setFloor("");
           }}
         >
@@ -110,6 +135,22 @@ export default function RoomsClient({ rooms, initialSite, initialFloor, canEdit 
           {sites.map((s) => (
             <option key={s} value={s}>
               {s}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className={selectCls}
+          value={building}
+          onChange={(e) => {
+            setBuilding(e.target.value);
+            setFloor("");
+          }}
+        >
+          <option value="">ทุกอาคาร</option>
+          {buildings.map((b) => (
+            <option key={b.code} value={b.code}>
+              {b.code} ({b.name})
             </option>
           ))}
         </select>

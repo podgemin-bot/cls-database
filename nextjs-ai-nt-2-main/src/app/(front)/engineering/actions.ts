@@ -48,14 +48,16 @@ const strOrNull = (v: unknown): string | null => {
 export type AssetInput = {
   category: AssetCategory
   name: string
-  legacyCode: string
   brand: string
   model: string
   status: string
+  note: string
   floorId: string
   roomId: string
   specType: string
   capacity: string
+  load: string
+  btu: string
   btuTotal: string
   unitsTotal: string
   unitsReady: string
@@ -86,16 +88,17 @@ function buildAssetData(input: AssetInput, code: string) {
   return {
     category: input.category,
     code,
-    legacyCode: strOrNull(input.legacyCode),
     name: input.name.trim(),
     brand: strOrNull(input.brand),
     model: strOrNull(input.model),
     status: strOrNull(input.status),
-    floorId,
+    note: strOrNull(input.note),
+    floorId: floorId ?? (roomId ? undefined : null),
     roomId,
     specs: cooling
       ? {
           type: strOrNull(input.specType),
+          btu: strOrNull(input.btu),
           btuTotal: toNum(input.btuTotal),
           unitsTotal: toNum(input.unitsTotal),
           unitsReady: toNum(input.unitsReady),
@@ -105,27 +108,27 @@ function buildAssetData(input: AssetInput, code: string) {
       : {
           type: strOrNull(input.specType),
           capacity: strOrNull(input.capacity),
+          load: strOrNull(input.load),
         },
   }
 }
 
 async function assetSiteCode(input: AssetInput): Promise<string | null> {
-  if (input.category === "POWER") {
-    const floorId = toNum(input.floorId)
-    if (!floorId) return null
-    const f = await prisma.floor.findUnique({
-      where: { id: floorId },
-      include: { building: { include: { site: true } } },
-    })
-    return f?.building.site.code ?? null
-  }
   const roomId = toNum(input.roomId)
-  if (!roomId) return null
-  const r = await prisma.room.findUnique({
-    where: { id: roomId },
-    include: { floor: { include: { building: { include: { site: true } } } } },
+  if (roomId) {
+    const r = await prisma.room.findUnique({
+      where: { id: roomId },
+      include: { floor: { include: { building: { include: { site: true } } } } },
+    })
+    return r?.floor.building.site.code ?? null
+  }
+  const floorId = toNum(input.floorId)
+  if (!floorId) return null
+  const f = await prisma.floor.findUnique({
+    where: { id: floorId },
+    include: { building: { include: { site: true } } },
   })
-  return r?.floor.building.site.code ?? null
+  return f?.building.site.code ?? null
 }
 
 export async function resolveNextAssetCode(

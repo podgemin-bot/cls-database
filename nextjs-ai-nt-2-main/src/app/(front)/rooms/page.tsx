@@ -37,6 +37,7 @@ export default async function RoomsPage({
   await connection();
   const params = await searchParams;
   const initialSite = typeof params.site === "string" ? params.site : "";
+  const initialBuilding = typeof params.building === "string" ? params.building : "";
   const initialFloor = typeof params.floor === "string" ? params.floor : "";
 
   const [rooms, session] = await Promise.all([
@@ -112,6 +113,7 @@ export default async function RoomsPage({
       <RoomsClient
         rooms={serialized}
         initialSite={initialSite}
+        initialBuilding={initialBuilding}
         initialFloor={initialFloor}
         canEdit={canEdit}
       />
