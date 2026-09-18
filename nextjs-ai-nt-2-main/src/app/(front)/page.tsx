@@ -41,8 +41,10 @@ export default async function DashboardPage() {
     })
   );
 
-  const totalRooms = STATUS_ORDER.reduce((sum, s) => sum + (statusBySite[0]?.get(s) ?? 0), 0) +
-    STATUS_ORDER.reduce((sum, s) => sum + (statusBySite[1]?.get(s) ?? 0), 0);
+  const totalRooms = statusBySite.reduce(
+    (sum, counts) => sum + STATUS_ORDER.reduce((s, st) => s + (counts.get(st) ?? 0), 0),
+    0
+  );
 
   return (
     <div className="mx-auto max-w-(--breakpoint-xl) px-4 py-8 sm:px-6 lg:px-8">

@@ -125,6 +125,7 @@ export default function EngineeringClient({
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [assetDialog, setAssetDialog] = useState<AssetDialogState | null>(null);
   const [certDialog, setCertDialog] = useState<CertDialogState | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   const powerSites = useMemo(
@@ -185,17 +186,19 @@ export default function EngineeringClient({
 
   function askDeleteAsset(a: PowerOrCooling) {
     if (!window.confirm(`ลบอุปกรณ์ "${a.name}" (${a.code}) แน่ใจหรือไม่?`)) return;
+    setActionError(null);
     startTransition(async () => {
       const res = await deleteAsset(a.id);
-      if (!res.ok && res.error) window.alert(ENG_ERROR_LABEL[res.error] ?? "เกิดข้อผิดพลาด");
+      if (!res.ok && res.error) setActionError(ENG_ERROR_LABEL[res.error] ?? "เกิดข้อผิดพลาด");
     });
   }
 
   function askDeleteCert(c: SerializedCertificate) {
     if (!window.confirm(`ลบใบรับรอง "${c.name}" (${c.code}) แน่ใจหรือไม่?`)) return;
+    setActionError(null);
     startTransition(async () => {
       const res = await deleteCertificate(c.id);
-      if (!res.ok && res.error) window.alert(ENG_ERROR_LABEL[res.error] ?? "เกิดข้อผิดพลาด");
+      if (!res.ok && res.error) setActionError(ENG_ERROR_LABEL[res.error] ?? "เกิดข้อผิดพลาด");
     });
   }
 
@@ -211,6 +214,7 @@ export default function EngineeringClient({
               setTab(t.key);
               setSite("");
               setStatusFilter([]);
+              setActionError(null);
             }}
           >
             {t.icon}
@@ -219,6 +223,12 @@ export default function EngineeringClient({
           </Button>
         ))}
       </div>
+
+      {actionError && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
+          {actionError}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         {tab !== "security" && (

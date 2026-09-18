@@ -22,6 +22,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { authClient } from "@/lib/auth-client"
 import { useRouter } from "next/navigation"
+import { useState } from "react"
 
 const registerSchema = z
   .object({
@@ -51,6 +52,8 @@ type RegisterFormValues = z.infer<typeof registerSchema>
 
 export default function RegisterForm() {
   const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -62,17 +65,21 @@ export default function RegisterForm() {
   })
 
   async function onSubmit(data: RegisterFormValues) {
-     await authClient.signUp.email({
+    setError(null);
+    setBusy(true);
+    await authClient.signUp.email({
       name: data.name,
       email: data.email,
       password: data.password,
      }, {
         onSuccess: () => {
-          alert('สมัครสมาชิกสำเร็จ');
+          setBusy(false);
           router.replace('/login');
         },
         onError: (ctx) => {
-          alert(JSON.stringify(ctx.error));
+          setBusy(false);
+          const message = (ctx.error as { message?: string })?.message;
+          setError(message ?? "สมัครสมาชิกไม่สำเร็จ กรุณาลองใหม่");
         }
      });
   }
@@ -177,8 +184,13 @@ export default function RegisterForm() {
         </form>
       </CardContent>
       <CardFooter className="flex flex-col gap-3">
-        <Button type="submit" form="form-register" className="w-full">
-          สมัครสมาชิก
+        {error && (
+          <p className="w-full rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-center text-sm font-medium text-destructive">
+            {error}
+          </p>
+        )}
+        <Button type="submit" form="form-register" className="w-full" disabled={busy}>
+          {busy ? "กำลังสมัครสมาชิก..." : "สมัครสมาชิก"}
         </Button>
         <p className="text-center text-sm text-muted-foreground">
           มีบัญชีอยู่แล้ว?{" "}

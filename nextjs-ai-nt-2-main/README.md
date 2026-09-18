@@ -1,42 +1,108 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CLS Facility Center
 
-## วิธีการใช้งาน Source Code
+ระบบบริหารจัดการศูนย์โทรคมนาคมและสถานีเคเบิลใต้น้ำ (Cable Landing Station) — ปากบารา (PKB, สตูล) และสงขลา (SKA)
 
-```bash
-เปลี่ยนชื่อจาก .env.example เป็น .env
+Web app สำหรับจัดการข้อมูลอาคาร / ชั้น / ห้อง, ระบบความปลอดภัย, ระบบไฟฟ้า-ทำความเย็น, ใบรับรอง และผังชั้นแบบ Interactive พร้อมระบบสิทธิ์ผู้ใช้ (Admin / Editor / Viewer)
 
-npm install
+## เทคโนโลยี
 
-npx prisma generate
+- [Next.js](https://nextjs.org) 16 (App Router, Turbopack, Cache Components)
+- React 19, TypeScript
+- [better-auth](https://better-auth.com) — ระบบยืนยันตัวตน + API / email, password
+- [Prisma](https://www.prisma.io) 7 + MySQL / MariaDB (driver adapter)
+- Tailwind CSS v4 + shadcn/ui
+- Vitest — unit/smoke test
 
-npm run dev
+## โครงสร้าง
 
-# or 
-
-npm run lint
-
-# or
-
-npm run build
+```
+src/
+├─ app/
+│  ├─ (auth)/login, (auth)/signup        # หน้าเข้าสู่ระบบ / สมัครสมาชิก
+│  ├─ (front)/                           # พื้นที่หลัง login
+│  │  ├─ page.tsx                        # ภาพรวมสถานี (dashboard)
+│  │  ├─ rooms/       ระบบห้อง + รูปถ่าย + รายละเอียด
+│  │  ├─ locations/   ลำดับชั้น Site → Building → Floor → Room (CRUD)
+│  │  ├─ floorplan/   ผังชั้น Interactive + การวางหมุด (pin)
+│  │  ├─ engineering/ Power / Cooling / ใบรับรอง / ความปลอดภัย
+│  │  ├─ profile/     โปรไฟล์ + เปลี่ยนรหัสผ่าน
+│  │  └─ admin/       จัดการผู้ใช้และสิทธิ์ (Admin เท่านั้น)
+│  └─ api/auth/[...all]                 # better-auth routes
+├─ components/ui/      # shadcn/ui components
+└─ lib/                # auth, prisma client, helpers
+prisma/schema.prisma   # โมเดลข้อมูล
+prisma/migrations/     # Prisma migrations
+scripts/import.ts      # import จาก Excel master database (ครั้งเดียว)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## เริ่มต้นพัฒนา (Development)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# 1. ตั้งค่าตัวแปร environment
+cp .env.example .env
+# แก้ DATABASE_URL, BETTER_AUTH_SECRET, BETTER_AUTH_URL ใน .env ตามจริง
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# 2. ติดตั้ง dependencies
+npm install
 
-## Learn More
+# 3. generate Prisma client และสร้าง schema ในฐานข้อมูล
+npx prisma generate
+npm run db:push     # เทียบเท่า prisma db push (เฉพาะ dev ครั้งแรก)
 
-To learn more about Next.js, take a look at the following resources:
+# 4. import ข้อมูลจาก Excel (ครั้งเดียว เมื่อมี CLS_Master_Database_Original.xlsx)
+npx tsx scripts/import.ts
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# 5. รัน dev server
+npm run dev
+# เปิด http://localhost:3000
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Scripts
 
-## Deploy on Vercel
+| คำสั่ง | ความหมาย |
+| ------ | ------- |
+| `npm run dev` | รัน dev server (Turbopack) |
+| `npm run build` | build สำหรับ production |
+| `npm run start` | รัน production build |
+| `npm run lint` | ตรวจ lint ด้วย ESLint |
+| `npm test` | รัน unit/smoke test ด้วย Vitest |
+| `npm run db:deploy` | ใช้ migrations กับฐานข้อมูล (production) |
+| `npm run db:push` | sync schema โดยตรง `prisma db push` (dev) |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Role / สิทธิ์
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Role | ความสามารถ |
+| ---- | ---------- |
+| ADMIN | ทุกอย่าง รวมถึงจัดการผู้ใช้ในหน้า `/admin` |
+| EDITOR | แก้ไข / เพิ่ม / ลบข้อมูล (rooms, locations, floorplan, engineering) |
+| VIEWER | ดูข้อมูลได้อย่างเดียว |
+
+การยืนยันสิทธิ์ทำแบบ layered: `src/proxy.ts` ตรวจว่า logged-in (redirect ไป `/login` ถ้าไม่) และ guard อีกชั้นใน server components / server actions (`auth.api.getSession`) ทุกครั้ง
+
+## Production Deployment
+
+```bash
+# ตั้ง env จริง (DB URL ฝั่ง production, BETTER_AUTH_SECRET, BETTER_AUTH_URL ตามโดเมน)
+# ตรวจสอบให้ครบก่อน build:
+npm run lint
+npm test
+npm run build
+
+# สร้าง/build สคีมาฐานข้อมูลด้วย migrations
+npm run db:deploy
+
+# Build Docker image (output standalone)
+docker build -t cls-facility-center .
+docker run -p 3000:3000 --env-file .env cls-facility-center
+```
+
+หมายเหตุ:
+- `.env.example` เป็น template ตัวจริง — ห้ามใส่ secrets จริงในไฟล์ที่ commit ขึ้น repo
+- `next.config.ts` ตั้ง `output: "standalone"` เพื่อให้ Dockerfile สร้าง standalone build ได้
+- ถ้ามีการเปลี่ยน `schema.prisma` ให้สร้าง migration ด้วย `npx prisma migrate dev` แล้ว commit ไฟล์ migration ไว้เสมอ
+
+## ความปลอดภัย
+
+- เปลี่ยน `BETTER_AUTH_SECRET` เป็นค่าสุ่มยาว (เช่น `openssl rand -base64 32`) ก่อนขึ้น production
+- ไม่ commit `.env`, secrets หรือ credential จริงลง git
+- Production ควรใช้ HTTPS และตั้ง `BETTER_AUTH_URL` ให้ตรงกับโดเมนจริง

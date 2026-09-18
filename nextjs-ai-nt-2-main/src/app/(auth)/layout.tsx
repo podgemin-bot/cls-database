@@ -3,10 +3,6 @@ import { Prompt, Roboto, Lora } from "next/font/google";
 import { cn } from "@/lib/utils";
 import "../globals.css";
 
-// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
-// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
-export const instant = false;
-
 const loraHeading = Lora({subsets:['latin'],variable:'--font-heading'});
 
 const roboto = Roboto({subsets:['latin'],variable:'--font-sans'});
@@ -19,8 +15,9 @@ export const promptFont = Prompt({
 
 
 export const metadata: Metadata = {
-  title: "ระบบ ล็อกอิน",
-  description: "เรียนรู้การเขียน Nex.tjs",
+  title: "เข้าสู่ระบบ",
+  description:
+    "ระบบบริหารจัดการศูนย์โทรคมนาคมและสถานีเคเบิลใต้น้ำ — การยืนยันตัวตน",
 };
 
 export default function AuthLayout({
