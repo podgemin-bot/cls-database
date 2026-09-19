@@ -45,6 +45,11 @@ export const NavMenu = ({
           <Link href="/engineering">ระบบวิศวกรรม</Link>
         </NavigationMenuLink>
       </NavigationMenuItem>
+      <NavigationMenuItem>
+        <NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>
+          <Link href="/customers">ลูกค้า</Link>
+        </NavigationMenuLink>
+      </NavigationMenuItem>
       {isLoggedIn && (
         <NavigationMenuItem>
           <NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>

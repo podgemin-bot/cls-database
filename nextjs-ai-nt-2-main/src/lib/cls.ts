@@ -241,6 +241,43 @@ export type SerializedRoomSecurityRow = {
   vesda: string | null
 }
 
+export const CUSTOMER_STAGES = [
+  "INQUIRY",
+  "ROOM_INQUIRY",
+  "RENTING",
+  "CLOSED",
+] as const
+
+export type CustomerStage = (typeof CUSTOMER_STAGES)[number]
+
+export const CUSTOMER_STAGE_META: Record<
+  CustomerStage,
+  { label: string; badge: string }
+> = {
+  INQUIRY: { label: "สอบถามทั่วไป", badge: "bg-slate-100 text-slate-700 border-slate-200" },
+  ROOM_INQUIRY: { label: "สอบถามห้องว่าง", badge: "bg-sky-100 text-sky-800 border-sky-200" },
+  RENTING: { label: "เช่าห้อง", badge: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+  CLOSED: { label: "ปิดการติดต่อ", badge: "bg-zinc-100 text-zinc-600 border-zinc-200" },
+}
+
+export type SerializedCustomer = {
+  id: number
+  code: string
+  name: string
+  stage: CustomerStage
+  contactName: string
+  contactPhone: string
+  contactEmail: string | null
+  interestedRooms: string[]
+  inquiryDate: string
+  contractNo: string | null
+  contractStart: string | null
+  contractEnd: string | null
+  note: string | null
+  rentedRoomCount: number
+  rentedRooms: { code: string; name: string }[]
+}
+
 export type SerializedSite = {
   id: number
   code: string

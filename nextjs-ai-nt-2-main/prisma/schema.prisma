@@ -94,6 +94,24 @@ model PhotoPoint {
   room       Room   @relation(fields: [roomId], references: [id])
 }
 
+model Customer {
+  id             Int       @id @default(autoincrement())
+  code           String    @unique @db.VarChar(20)
+  name           String    @db.VarChar(150)
+  stage          String    @default("INQUIRY") @db.VarChar(20)
+  contactName    String    @db.VarChar(120)
+  contactPhone   String    @db.VarChar(30)
+  contactEmail   String?   @db.VarChar(120)
+  interestedRooms Json?
+  inquiryDate    DateTime  @default(now())
+  contractNo     String?   @db.VarChar(60)
+  contractStart  DateTime?
+  contractEnd    DateTime?
+  note           String?   @db.Text
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
 model Asset {
   id         Int           @id @default(autoincrement())
   category   AssetCategory
