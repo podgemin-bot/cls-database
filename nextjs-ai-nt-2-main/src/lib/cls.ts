@@ -55,11 +55,44 @@ export type SecurityData = {
   cctvCount?: number | null
   accessControl?: string | null
   fireSuppression?: string | null
-  gasPressure?: string | null
   vesda?: string | null
-  doorLockType?: string | null
-  firePanelBrand?: string | null
-  gasTankCount?: number | null
+}
+
+export const ACCESS_CONTROL_OPTIONS = [
+  "RFID Proximity Card",
+  "PIN Code",
+  "Biometric (Facial + Fingerprint)",
+  "Key",
+] as const
+
+export const FIRE_SUPPRESSION_OPTIONS = [
+  "ไม่ติดตั้ง",
+  "CO2 Clean Agent System",
+  "FM-200 (HFC-227ea)",
+  "Novec 1230 (FK-5-1-12)",
+  "Stat-X Aerosol System",
+] as const
+
+export const SMOKE_DETECTOR_OPTIONS = ["ไม่ติดตั้ง", "VESDA"] as const
+
+export function shortOptionLabel(v: string | null | undefined): string {
+  const t = (v ?? "").trim()
+  if (!t) return "ไม่ติดตั้ง"
+  return t.replace(/\s*\(.*\)\s*$/, "").trim()
+}
+
+export type AccessControlOption = (typeof ACCESS_CONTROL_OPTIONS)[number]
+
+export function splitAccessControl(v: string | null | undefined): string[] {
+  return (v ?? "")
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean)
+}
+
+export function joinAccessControl(vals: string[]): string | null {
+  const cleaned = vals.map((x) => x.trim()).filter(Boolean)
+  return cleaned.length > 0 ? cleaned.join(", ") : null
 }
 
 export type RoomPhotoFile = { url: string; name: string }
@@ -206,10 +239,6 @@ export type SerializedRoomSecurityRow = {
   accessControl: string | null
   fireSuppression: string | null
   vesda: string | null
-  gasPressure: string | null
-  gasTankCount: number | null
-  doorLockType: string | null
-  firePanelBrand: string | null
 }
 
 export type SerializedSite = {

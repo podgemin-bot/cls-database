@@ -27,7 +27,11 @@ import type {
   SerializedCoolingAsset,
   SerializedPowerAsset,
   SerializedRoomSecurityRow,
+  SecurityData,
 } from "@/lib/cls";
+import { shortOptionLabel, splitAccessControl } from "@/lib/cls";
+import { SecurityForm, securityFormFromData, type SecurityFormValue } from "@/components/security-form";
+import { updateRoomSecurity } from "../rooms/actions";
 import {
   createAsset,
   createCertificate,
@@ -41,6 +45,7 @@ import {
   type CertInput,
 } from "./actions";
 import {
+  Eye,
   Flame,
   FileCheck2,
   Pencil,
@@ -125,6 +130,8 @@ export default function EngineeringClient({
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [assetDialog, setAssetDialog] = useState<AssetDialogState | null>(null);
   const [certDialog, setCertDialog] = useState<CertDialogState | null>(null);
+  const [securityRead, setSecurityRead] = useState<SerializedRoomSecurityRow | null>(null);
+  const [securityEdit, setSecurityEdit] = useState<SerializedRoomSecurityRow | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
@@ -335,7 +342,14 @@ export default function EngineeringClient({
           onDelete={askDeleteCert}
         />
       )}
-      {tab === "security" && <SecurityTable rows={filteredSecurity} />}
+      {tab === "security" && (
+        <SecurityTable
+          rows={filteredSecurity}
+          canEdit={canEdit}
+          onRead={setSecurityRead}
+          onEdit={setSecurityEdit}
+        />
+      )}
 
       {assetDialog && (
         <AssetDialog
@@ -351,6 +365,8 @@ export default function EngineeringClient({
           onClose={() => setCertDialog(null)}
         />
       )}
+      {securityRead && <SecurityReadDialog row={securityRead} onClose={() => setSecurityRead(null)} />}
+      {securityEdit && <SecurityEditDialog row={securityEdit} onClose={() => setSecurityEdit(null)} />}
     </div>
   );
 }
@@ -657,7 +673,31 @@ function CertTable({
   );
 }
 
-function SecurityTable({ rows }: { rows: SerializedRoomSecurityRow[] }) {
+function AccessBadges({ value }: { value: string | null | undefined }) {
+  const list = splitAccessControl(value);
+  if (list.length === 0) return <span className="text-muted-foreground">-</span>;
+  return (
+    <div className="flex flex-wrap gap-1">
+      {list.map((x) => (
+        <Badge key={x} variant="outline" className="bg-muted/50">
+          {x}
+        </Badge>
+      ))}
+    </div>
+  );
+}
+
+function SecurityTable({
+  rows,
+  canEdit,
+  onRead,
+  onEdit,
+}: {
+  rows: SerializedRoomSecurityRow[];
+  canEdit: boolean;
+  onRead: (r: SerializedRoomSecurityRow) => void;
+  onEdit: (r: SerializedRoomSecurityRow) => void;
+}) {
   const [site, setSite] = useState("");
 
   const sites = useMemo(
@@ -694,20 +734,17 @@ function SecurityTable({ rows }: { rows: SerializedRoomSecurityRow[] }) {
             <TableRow className="bg-muted/50">
               <TableHead>รหัสห้อง</TableHead>
               <TableHead>ชื่อห้อง</TableHead>
-              <TableHead>Access card</TableHead>
+              <TableHead>Access Control</TableHead>
               <TableHead className="text-center">CCTV</TableHead>
               <TableHead>ระบบดับเพลิง</TableHead>
-              <TableHead>ตรวจจับควัน (VESDA)</TableHead>
-              <TableHead>แรงดันก๊าซ</TableHead>
-              <TableHead className="text-center">ถังก๊าซ</TableHead>
-              <TableHead>กลอนประตู</TableHead>
-              <TableHead>Fire panel</TableHead>
+              <TableHead>Smoke Detector</TableHead>
+              <TableHead className="w-20 text-center">ดู / แก้ไข</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={10} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
                   ไม่พบข้อมูลความปลอดภัย
                 </TableCell>
               </TableRow>
@@ -716,24 +753,170 @@ function SecurityTable({ rows }: { rows: SerializedRoomSecurityRow[] }) {
               <TableRow key={r.id}>
                 <TableCell className="font-mono text-xs font-medium">{r.code}</TableCell>
                 <TableCell className="font-medium">{r.name}</TableCell>
-                <TableCell>{r.accessControl ?? "-"}</TableCell>
+                <TableCell>
+                  <AccessBadges value={r.accessControl} />
+                </TableCell>
                 <TableCell className="text-center tabular-nums">
                   {r.cctvCount != null ? `${r.cctvCount} ตัว` : "-"}
                 </TableCell>
-                <TableCell>{r.fireSuppression ?? "-"}</TableCell>
-                <TableCell>{r.vesda ?? "-"}</TableCell>
-                <TableCell>{r.gasPressure ?? "-"}</TableCell>
-                <TableCell className="text-center tabular-nums">
-                  {r.gasTankCount != null ? `${r.gasTankCount} ถัง` : "-"}
+                <TableCell>{shortOptionLabel(r.fireSuppression)}</TableCell>
+                <TableCell>{shortOptionLabel(r.vesda)}</TableCell>
+                <TableCell className="w-20">
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      tabIndex={-1}
+                      onClick={() => onRead(r)}
+                      aria-label="ดูข้อมูล"
+                    >
+                      <Eye className="size-3.5" />
+                    </Button>
+                    {canEdit && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        tabIndex={-1}
+                        onClick={() => onEdit(r)}
+                        aria-label="แก้ไข"
+                      >
+                        <Pencil className="size-3.5" />
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
-                <TableCell>{r.doorLockType ?? "-"}</TableCell>
-                <TableCell>{r.firePanelBrand ?? "-"}</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
     </div>
+  );
+}
+
+function SecurityReadDialog({
+  row,
+  onClose,
+}: {
+  row: SerializedRoomSecurityRow;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{row.name}</DialogTitle>
+          <DialogDescription className="font-mono text-xs">
+            {row.code} · {row.floorLabel} · {row.siteCode}
+          </DialogDescription>
+        </DialogHeader>
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-3">
+          <div>
+            <dt className="text-xs text-muted-foreground">Access Control</dt>
+            <dd className="pt-1 text-sm font-medium">
+              <AccessBadges value={row.accessControl} />
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">กล้อง CCTV</dt>
+            <dd className="text-sm font-medium">
+              {row.cctvCount != null ? `${row.cctvCount} ตัว` : "-"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">ระบบดับเพลิง</dt>
+            <dd className="text-sm font-medium">{shortOptionLabel(row.fireSuppression)}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Smoke Detector</dt>
+            <dd className="text-sm font-medium">{shortOptionLabel(row.vesda)}</dd>
+          </div>
+        </dl>
+        <div className="flex items-center justify-end border-t pt-4">
+          <Button type="button" variant="ghost" onClick={onClose}>
+            ปิด
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SecurityEditDialog({
+  row,
+  onClose,
+}: {
+  row: SerializedRoomSecurityRow;
+  onClose: () => void;
+}) {
+  const [, startTransition] = useTransition();
+  const sec: SecurityData = {
+    cctvCount: row.cctvCount,
+    accessControl: row.accessControl,
+    fireSuppression: row.fireSuppression,
+    vesda: row.vesda,
+  };
+  const [form, setForm] = useState<SecurityFormValue>(() => securityFormFromData(sec));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  function save() {
+    setError(null);
+    setSuccess(null);
+    setBusy(true);
+    startTransition(async () => {
+      try {
+        const res = await updateRoomSecurity({
+          roomId: row.id,
+          cctvCount: form.cctvCount,
+          accessControl: form.accessControl,
+          fireSuppression: form.fireSuppression,
+          vesda: form.vesda,
+        });
+        if (!res.ok && res.error) {
+          setError(res.error);
+          return;
+        }
+        setSuccess("บันทึกเรียบร้อย");
+        onClose();
+      } catch {
+        setError("server-error");
+      } finally {
+        setBusy(false);
+      }
+    });
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && !busy && onClose()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>แก้ไขระบบความปลอดภัย: {row.name}</DialogTitle>
+          <DialogDescription className="font-mono text-xs">
+            {row.code} · {row.floorLabel} · {row.siteCode}
+          </DialogDescription>
+        </DialogHeader>
+
+        {error && (
+          <p className="text-sm font-medium text-destructive">
+            {ENG_ERROR_LABEL[error] ?? "เกิดข้อผิดพลาด"}
+          </p>
+        )}
+        {success && <p className="text-sm font-medium text-emerald-600">{success}</p>}
+
+        <SecurityForm value={form} onChange={setForm} />
+
+        <div className="flex items-center justify-end gap-2 border-t pt-4">
+          <Button type="button" variant="ghost" onClick={onClose} disabled={busy}>
+            ปิด
+          </Button>
+          <Button type="button" onClick={save} disabled={busy}>
+            {busy ? "กำลังบันทึก..." : "บันทึก"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

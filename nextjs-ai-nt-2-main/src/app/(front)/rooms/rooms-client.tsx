@@ -20,7 +20,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { STATUS_META, type RoomStatus, type SerializedRoom } from "@/lib/cls";
+import { STATUS_META, shortOptionLabel, type RoomStatus, type SerializedRoom } from "@/lib/cls";
+import {
+  SecurityForm,
+  securityFormFromData,
+  type SecurityFormValue,
+} from "@/components/security-form";
 import {
   deleteRoomPhoto,
   updateRoom,
@@ -310,16 +315,12 @@ function RoomDetail({
     ["ผู้ถือครอง/ผู้เช่า", room.tenant ?? "-"],
   ];
 
-  const secRows: [string, string | number | null | undefined][] = sec
+const secRows: [string, string | number | null | undefined][] = sec
     ? [
         ["กล้อง CCTV", sec.cctvCount != null ? `${sec.cctvCount} ตัว` : "-"],
         ["Access Control", sec.accessControl],
-        ["ระบบดับเพลิง", sec.fireSuppression],
-        ["แรงดันก๊าซ", sec.gasPressure],
-        ["VESDA", sec.vesda],
-        ["กลอนประตู", sec.doorLockType],
-        ["Fire Panel", sec.firePanelBrand],
-        ["ถังก๊าซ", sec.gasTankCount != null ? `${sec.gasTankCount} ถัง` : "-"],
+        ["ระบบดับเพลิง", shortOptionLabel(sec.fireSuppression)],
+        ["Smoke Detector", shortOptionLabel(sec.vesda)],
       ]
     : [];
 
@@ -486,15 +487,8 @@ function EditRoomDialog({
   );
   const [tenant, setTenant] = useState(room.tenant ?? "");
 
-  const sec = room.security;
-  const [cctv, setCctv] = useState(sec?.cctvCount != null ? String(sec.cctvCount) : "");
-  const [accessControl, setAccessControl] = useState(sec?.accessControl ?? "");
-  const [fireSuppression, setFireSuppression] = useState(sec?.fireSuppression ?? "");
-  const [gasPressure, setGasPressure] = useState(sec?.gasPressure ?? "");
-  const [vesda, setVesda] = useState(sec?.vesda ?? "");
-  const [doorLock, setDoorLock] = useState(sec?.doorLockType ?? "");
-  const [firePanel, setFirePanel] = useState(sec?.firePanelBrand ?? "");
-  const [gasTank, setGasTank] = useState(sec?.gasTankCount != null ? String(sec.gasTankCount) : "");
+  const secForm = useState<SecurityFormValue>(() => securityFormFromData(room.security));
+  const [secValue, setSecValue] = secForm;
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -515,14 +509,10 @@ function EditRoomDialog({
 
   const securityInput = (): SecurityInput => ({
     roomId: room.id,
-    cctvCount: cctv,
-    accessControl,
-    fireSuppression,
-    gasPressure,
-    vesda,
-    doorLockType: doorLock,
-    firePanelBrand: firePanel,
-    gasTankCount: gasTank,
+    cctvCount: secValue.cctvCount,
+    accessControl: secValue.accessControl,
+    fireSuppression: secValue.fireSuppression,
+    vesda: secValue.vesda,
   });
 
   function saveRoom() {
@@ -647,40 +637,7 @@ function EditRoomDialog({
             <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold">
               <ShieldCheck className="size-4 text-primary" /> ระบบความปลอดภัย
             </h3>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <div className="space-y-1">
-                {label("กล้อง CCTV")}
-                <Input type="number" value={cctv} onChange={(e) => setCctv(e.target.value)} min={0} />
-              </div>
-              <div className="space-y-1">
-                {label("Access Control")}
-                <Input value={accessControl} onChange={(e) => setAccessControl(e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                {label("ระบบดับเพลิง")}
-                <Input value={fireSuppression} onChange={(e) => setFireSuppression(e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                {label("แรงดันก๊าซ")}
-                <Input value={gasPressure} onChange={(e) => setGasPressure(e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                {label("VESDA")}
-                <Input value={vesda} onChange={(e) => setVesda(e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                {label("กลอนประตู")}
-                <Input value={doorLock} onChange={(e) => setDoorLock(e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                {label("Fire Panel")}
-                <Input value={firePanel} onChange={(e) => setFirePanel(e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                {label("ถังก๊าซ (จำนวน)")}
-                <Input type="number" value={gasTank} onChange={(e) => setGasTank(e.target.value)} min={0} />
-              </div>
-            </div>
+            <SecurityForm value={secValue} onChange={setSecValue} />
           </section>
 
           <section>

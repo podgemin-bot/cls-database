@@ -83,11 +83,7 @@ export default async function RoomsPage({
           cctvCount: r.security.cctvCount,
           accessControl: r.security.accessControl,
           fireSuppression: r.security.fireSuppression,
-          gasPressure: r.security.gasPressure,
           vesda: r.security.vesda,
-          doorLockType: r.security.doorLockType,
-          firePanelBrand: r.security.firePanelBrand,
-          gasTankCount: r.security.gasTankCount,
         } satisfies SecurityData)
       : null,
     cooling: r.assets.map((a) => ({

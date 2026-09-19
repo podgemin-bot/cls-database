@@ -61,6 +61,36 @@ function parseLevel(label: string | number | Date | null): number | null {
 const pad2 = (n: number) => String(n).padStart(2, "0")
 const pad3 = (n: number) => String(n).padStart(3, "0")
 
+const VALUE_MAPS = {
+  access: {
+    "RFID Card + PIN Code": "RFID Proximity Card, PIN Code",
+    "pin+Card": "PIN Code, RFID Proximity Card",
+  } as Record<string, string>,
+  fire: {
+    FM200: "FM-200 (HFC-227ea)",
+  } as Record<string, string>,
+  vesda: {
+    yes: "VESDA",
+    "มี (Installed)": "VESDA",
+    "ไม่มี (N/A)": "ไม่ติดตั้ง",
+  } as Record<string, string>,
+}
+
+function normalizeAccess(v: string | null): string | null {
+  if (!v) return null
+  return VALUE_MAPS.access[v] ?? v
+}
+
+function normalizeFire(v: string | null): string | null {
+  if (!v) return null
+  return VALUE_MAPS.fire[v] ?? v
+}
+
+function normalizeVesda(v: string | null): string | null {
+  if (!v) return null
+  return VALUE_MAPS.vesda[v] ?? v
+}
+
 const STATUS_MAP: Record<string, "VACANT" | "OCCUPIED" | "MAINTENANCE" | "RESERVED"> = {
   "มีผู้ใช้งาน": "OCCUPIED",
   "กำลังใช้งาน": "OCCUPIED",
@@ -191,13 +221,9 @@ async function main() {
       data: {
         roomId,
         cctvCount: num(cell(security, r, 6)),
-        accessControl: str(cell(security, r, 7)),
-        fireSuppression: str(cell(security, r, 8)),
-        gasPressure: str(cell(security, r, 9)),
-        vesda: str(cell(security, r, 10)),
-        doorLockType: str(cell(security, r, 11)),
-        firePanelBrand: str(cell(security, r, 12)),
-        gasTankCount: num(cell(security, r, 13)),
+        accessControl: normalizeAccess(str(cell(security, r, 7))),
+        fireSuppression: normalizeFire(str(cell(security, r, 8))),
+        vesda: normalizeVesda(str(cell(security, r, 10))),
       },
     })
   }

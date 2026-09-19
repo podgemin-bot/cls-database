@@ -163,22 +163,16 @@ export default async function EngineeringPage() {
     roomCode: c.roomCode,
   }));
 
-  const securityRows: SerializedRoomSecurityRow[] = rooms
-    .filter((r) => r.security)
-    .map((r) => ({
+  const securityRows: SerializedRoomSecurityRow[] = rooms.map((r) => ({
       id: r.id,
       code: r.code,
       name: r.name,
       siteCode: r.floor.building.site.code,
       floorLabel: r.floor.label,
-      cctvCount: r.security!.cctvCount,
-      accessControl: r.security!.accessControl,
-      fireSuppression: r.security!.fireSuppression,
-      vesda: r.security!.vesda,
-      gasPressure: r.security!.gasPressure,
-      gasTankCount: r.security!.gasTankCount,
-      doorLockType: r.security!.doorLockType,
-      firePanelBrand: r.security!.firePanelBrand,
+      cctvCount: r.security?.cctvCount ?? null,
+      accessControl: r.security?.accessControl ?? null,
+      fireSuppression: r.security?.fireSuppression ?? null,
+      vesda: r.security?.vesda ?? null,
     }));
 
   const totalPower = power.length;

@@ -80,11 +80,7 @@ model RoomSecurity {
   cctvCount       Int?
   accessControl   String? @db.VarChar(100)
   fireSuppression String? @db.VarChar(150)
-  gasPressure     String? @db.VarChar(100)
   vesda           String? @db.VarChar(100)
-  doorLockType    String? @db.VarChar(100)
-  firePanelBrand  String? @db.VarChar(100)
-  gasTankCount    Int?
   room            Room    @relation(fields: [roomId], references: [id])
 }
 

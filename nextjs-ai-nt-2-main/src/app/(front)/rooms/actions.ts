@@ -7,6 +7,12 @@ import { refresh } from "next/cache";
 import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import type { RoomStatus } from "@/lib/cls";
+import {
+  ACCESS_CONTROL_OPTIONS,
+  FIRE_SUPPRESSION_OPTIONS,
+  SMOKE_DETECTOR_OPTIONS,
+  joinAccessControl,
+} from "@/lib/cls";
 
 export type RoomResult = { ok: boolean; error?: string };
 
@@ -85,18 +91,30 @@ export async function updateRoom(input: UpdateRoomInput): Promise<RoomResult> {
 export type SecurityInput = {
   roomId: number;
   cctvCount: string;
-  accessControl: string;
+  accessControl: string[];
   fireSuppression: string;
-  gasPressure: string;
   vesda: string;
-  doorLockType: string;
-  firePanelBrand: string;
-  gasTankCount: string;
 };
+
+function normalizeAccessControl(vals: string[]): string | null {
+  const allowed = new Set<string>(ACCESS_CONTROL_OPTIONS);
+  const cleaned = vals.filter((v) => allowed.has(v.trim()));
+  return joinAccessControl(cleaned);
+}
 
 export async function updateRoomSecurity(input: SecurityInput): Promise<RoomResult> {
   const denied = await requireEditor();
   if (denied) return { ok: false, error: denied };
+
+  const accessControl = normalizeAccessControl(input.accessControl);
+  const fireSuppression = (FIRE_SUPPRESSION_OPTIONS as readonly string[]).includes(
+    input.fireSuppression.trim()
+  )
+    ? input.fireSuppression.trim() || null
+    : null;
+  const vesda = (SMOKE_DETECTOR_OPTIONS as readonly string[]).includes(input.vesda.trim())
+    ? input.vesda.trim() || null
+    : null;
 
   try {
     const room = await prisma.room.findUnique({ where: { id: input.roomId } });
@@ -107,23 +125,15 @@ export async function updateRoomSecurity(input: SecurityInput): Promise<RoomResu
       create: {
         roomId: input.roomId,
         cctvCount: toNum(input.cctvCount),
-        accessControl: input.accessControl.trim() || null,
-        fireSuppression: input.fireSuppression.trim() || null,
-        gasPressure: input.gasPressure.trim() || null,
-        vesda: input.vesda.trim() || null,
-        doorLockType: input.doorLockType.trim() || null,
-        firePanelBrand: input.firePanelBrand.trim() || null,
-        gasTankCount: toNum(input.gasTankCount),
+        accessControl,
+        fireSuppression,
+        vesda,
       },
       update: {
         cctvCount: toNum(input.cctvCount),
-        accessControl: input.accessControl.trim() || null,
-        fireSuppression: input.fireSuppression.trim() || null,
-        gasPressure: input.gasPressure.trim() || null,
-        vesda: input.vesda.trim() || null,
-        doorLockType: input.doorLockType.trim() || null,
-        firePanelBrand: input.firePanelBrand.trim() || null,
-        gasTankCount: toNum(input.gasTankCount),
+        accessControl,
+        fireSuppression,
+        vesda,
       },
     });
     refresh();
