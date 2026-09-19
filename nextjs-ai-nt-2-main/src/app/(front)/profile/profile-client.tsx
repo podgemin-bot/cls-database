@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
-import * as z from "zod";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,53 +29,23 @@ import {
   UserRound,
 } from "lucide-react";
 import { useState } from "react";
+import {
+  nameSchema,
+  passwordSchema,
+  type NameFormValues,
+  type PasswordFormValues,
+} from "@/lib/profile-schemas";
+import { translateProfileError } from "@/lib/profile-errors";
 import type { SerializedProfileUser } from "./page";
 
 type Props = {
   user: SerializedProfileUser;
 };
 
-const nameSchema = z.object({
-  name: z
-    .string()
-    .min(1, "กรุณากรอกชื่อ")
-    .min(2, "ชื่อต้องมีอย่างน้อย 2 ตัวอักษร")
-    .max(50, "ชื่อต้องไม่เกิน 50 ตัวอักษร"),
-});
-
-const passwordSchema = z
-  .object({
-    currentPassword: z
-      .string()
-      .min(1, "กรุณากรอกรหัสผ่านปัจจุบัน"),
-    newPassword: z
-      .string()
-      .min(1, "กรุณากรอกรหัสผ่านใหม่")
-      .min(8, "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร"),
-    confirmPassword: z
-      .string()
-      .min(1, "กรุณายืนยันรหัสผ่านใหม่"),
-  })
-  .refine((data) => data.newPassword === data.confirmPassword, {
-    message: "รหัสผ่านไม่ตรงกัน",
-    path: ["confirmPassword"],
-  });
-
-type NameFormValues = z.infer<typeof nameSchema>;
-type PasswordFormValues = z.infer<typeof passwordSchema>;
-
 const ROLE_META: Record<string, { label: string; badge: string }> = {
   ADMIN: { label: "Admin", badge: "bg-amber-100 text-amber-800 border-amber-200" },
   EDITOR: { label: "Editor", badge: "bg-sky-100 text-sky-800 border-sky-200" },
   VIEWER: { label: "Viewer", badge: "bg-slate-100 text-slate-700 border-slate-200" },
-};
-
-const ERROR_LABEL: Record<string, string> = {
-  "invalid-password": "รหัสผ่านปัจจุบันไม่ถูกต้อง",
-  "password-too-short": "รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร",
-  "password-mismatch": "รหัสผ่านไม่ตรงกัน",
-  unauthorized: "กรุณาเข้าสู่ระบบ",
-  "server-error": "เกิดข้อผิดพลาด กรุณาลองใหม่",
 };
 
 export default function ProfileClient({ user }: Props) {
@@ -87,15 +56,6 @@ export default function ProfileClient({ user }: Props) {
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
 
   const roleMeta = ROLE_META[user.role] ?? ROLE_META.VIEWER;
-
-  function translateError(ctx: {
-    error?: { code?: string | number; status?: number; name?: string; message?: string };
-  }): string {
-    const code = String(ctx?.error?.code ?? ctx?.error?.status ?? "");
-    const name = ctx?.error?.name ?? "";
-    const key = code || name || "";
-    return ERROR_LABEL[key] ?? ctx?.error?.message ?? "เกิดข้อผิดพลาด กรุณาลองใหม่";
-  }
 
   const nameForm = useForm<NameFormValues>({
     resolver: zodResolver(nameSchema),
@@ -124,7 +84,7 @@ export default function ProfileClient({ user }: Props) {
           router.refresh();
         },
         onError: (ctx) => {
-          setNameError(translateError(ctx));
+          setNameError(translateProfileError(ctx));
         },
       }
     );
@@ -145,7 +105,7 @@ export default function ProfileClient({ user }: Props) {
           passwordForm.reset();
         },
         onError: (ctx) => {
-          setPasswordError(translateError(ctx));
+          setPasswordError(translateProfileError(ctx));
         },
       }
     );
