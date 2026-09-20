@@ -8,6 +8,7 @@ const PROTECTED_PREFIXES = [
   "/locations",
   "/floorplan",
   "/engineering",
+  "/customers",
   "/profile",
   "/admin",
 ];

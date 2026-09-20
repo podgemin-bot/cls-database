@@ -96,8 +96,8 @@ async function main() {
   // column header "ดู / แก้ไข" is always rendered — assert on the gated buttons (aria-label only rendered when canEdit)
   check("VIEWER: no edit/delete buttons", !viewerHtml.includes('aria-label="แก้ไข"') && !viewerHtml.includes('aria-label="ลบ"') && !viewerHtml.includes("เพิ่มลูกค้า"))
 
-  const guestHtml = await (await get("/customers")).text()
-  check("guest: /customers still readable, read-only", guestHtml.includes("ลูกค้า") && !guestHtml.includes("เพิ่มลูกค้า"))
+  const guestRes = await get("/customers")
+  check("guest: /customers redirects to /login (protected)", guestRes.status === 307 && (guestRes.headers.get("location") ?? "").includes("/login?callbackURL=%2Fcustomers"))
 
   // ---------- Phase C: real data path (row created in DB shows on the page) ----------
   console.log("\n== Phase C: data path ==")

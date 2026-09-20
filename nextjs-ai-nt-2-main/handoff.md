@@ -29,7 +29,7 @@ npx.cmd prisma generate    # หลังแก้ schema
 
 ## Auth & Protected routes
 - `src/proxy.ts` — middleware guard: redirect 307 → `/login?callbackURL=…`
-- Protected: `/rooms`, `/locations`, `/floorplan`, `/engineering`, `/profile`, `/admin` (**ไม่รวม** `/customers`)
+- Protected: `/`, `/rooms`, `/locations`, `/floorplan`, `/engineering`, `/customers`, `/profile`, `/admin` (ทุกหน้าใช้ข้อมูลงานจริง — ไม่มีหน้า public กับข้อมูล)
 - Role: `ADMIN` / `EDITOR` / `VIEWER` (field `user.role`)
 - Session cookie: `better-auth.session_token=<token>.<signature>` — **เป็น signed cookie** (HMAC ด้วย `BETTER_AUTH_SECRET`) ค่า raw token ใน DB ใช้ directamente ไม่ได้ ต้องเอามาจาก `auth.api.*` กับ `returnHeaders: true`
 
@@ -109,6 +109,7 @@ npx.cmd prisma generate    # หลังแก้ schema
     - `npm.cmd run build` ผ่านสะอาด: 12/12 routes (ƒ dynamic: /, /admin, /customers, /engineering, /floorplan, /locations, /profile, /rooms, auth; ○ static prerender: /login, /signup, /_not-found) + proxy middleware
     - **Gotcha**: `next.config.ts` ใช้ `output: "standalone"` → `npm.cmd run start` ทำงานได้แต่ print คำเตือนว่าให้ใช้ `node .next/standalone/server.js` แทน; build ไม่ copy `public`/`static` เองทั้งหมด — standalone dir มี `public`, `.next` (server) ครบ แต่ต้อง **manual copy `.next/static` → `.next/standalone/.next/static`** ก่อนรัน 1 ครั้ง
     - รันจริง (`node .next/standalone/server.js` + `PORT`/`HOSTNAME`/`BETTER_AUTH_URL` env): guest → protected 307 ครบ, /customers/​/login/​/signup 200, authed /customers+​/floorplan 200, get-session 200, storage photo 200 (312KB), static chunk 200, **err log ว่าง**
+15. **ตั้งร่ม /customers** — เพิ่ม `"/customers"` ใน `PROTECTED_PREFIXES` (`src/proxy.ts`); proxy.test.ts +1 (guest /customers → 307 callbackURL `%2Fcustomers`, authed 200); customers-e2e-smoke เปลี่ยน guest check จาก "อ่านได้เฉยๆ" เป็น 307 → /login — suite รวม **25 ไฟล์ / 258 เทสต์** ✓; ยืนยัน real dev server: `307 → /login?callbackURL=%2Fcustomers`
 13. **rooms-crud integration test** — `src/rooms-crud.test.ts` (10, จริง DB + จริง fs, mock auth แบบ admin-crud): `updateRoom` (rename/status/ตัวเลข/tenant trim, invalid-input: ชื่อว่าง/สถานะผิด, not-found), `updateRoomSecurity` upsert + update/normalize ค่าผิด → null (เช็ค: `ไม่ติดตั้ง` เป็น option ที่ถูก → ไม่โดน normalize), upload/delete photo เขียน-ลบไฟล์จริงใน `public/storage/photos/<รหัส>` + cleanup เอง, reject invalid-type/too-large (10MB+1)/unsafe path/unauthorized — **Gotcha**: `new File` ต้องห่อ `Uint8Array.from(bytes)` มิฉะนั้น tsc ฟ้อง `ArrayBufferLike` → `ArrayBuffer` (Buffer เป็น `Uint8Array<ArrayBufferLike>` ไม่ match `BlobPart`)
 14. **E2E smoke rooms/engineering/locations** — `scripts/rooms-eng-loc-e2e-smoke.ts` (14 checks, จริงผ่าน dev server, marker จาก DB จริง): guest → protected 307 ครบ 5 หน้า; /rooms 200 + แสดง room code + "ดูรายละเอียด" (ทั้ง editor/viewer — canEdit ของ rooms gate แค่ปุ่มแก้ไขใน dialog ไม่มีผลต่อ SSR); /engineering editor เห็น "เพิ่ม Power" (default tab power) + asset code, viewer ไม่เห็นปุ่มแต่เห็นตาราง; /locations editor เห็น "เพิ่มสถานี" (level default sites) + site code, viewer ไม่เห็นปุ่มแต่เห็น site cards; ลบ users cascade — **14/14 PASS** — suite รวมตอนนี้ **25 ไฟล์ / 257 เทสต์** ✓
 2. **Security page** — `shortOptionLabel` ตัดวงเล็บ (FM-200/Novec 1230), default "ไม่ติดตั้ง", backfill script
@@ -120,7 +121,7 @@ npx.cmd prisma generate    # หลังแก้ schema
 Dev server รันอยู่ที่ http://localhost:3000 (ดู log: `dev.log`, `dev.err.log`)
 
 ## งานค้าง / โน้ต
-- UI component test ครอบคลุมเพียบ (Lightbox, SecurityForm, LogoutMenu, Navbar, CustomersClient, AdminClient, EngineeringClient, LocationsClient, RoomsClient, FloorplanClient, ProfileClient, Dashboard + server actions ของ admin/engineering/locations/rooms/profile/customers) — suite รวม 25 ไฟล์ / 257 เทสต์ ✓
+- UI component test ครอบคลุมเพียบ (Lightbox, SecurityForm, LogoutMenu, Navbar, CustomersClient, AdminClient, EngineeringClient, LocationsClient, RoomsClient, FloorplanClient, ProfileClient, Dashboard + server actions ของ admin/engineering/locations/rooms/profile/customers) — suite รวม 25 ไฟล์ / 258 เทสต์ ✓
 - **หมายเหตุ**: admin-client ใช้ <select> ธรรมดา (ไม่ใช่ radix Select) — นับ `combobox` ลำดับ: 0=สิทธิ์ฟอร์มสร้าง, แล้วไล่ตามแถวตาราง
 - **~(แก้แล้ว)~ P1 a11y ฟอร์มลูกค้า**: `FieldLabel` + `htmlFor`/`id` ผูก label กับทุกช่องแล้ว (cust-name/stage/inquiry-date/contact-name/contact-phone/contact-email/contract-no/start/end/note) + `aria-label` ช่องค้นหา → เทสต์ใช้ `getByLabelText`/accessible name แทน placeholder/`querySelector('input[type=...]')` แล้ว (10 เทสต์)
 - `scripts/` มีสคริปต์แบบใช้ครั้งเดียว (backfill/normalize/seed) — รันซ้ำได้ปลอดภัย (upsert)

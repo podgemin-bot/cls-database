@@ -31,6 +31,15 @@ describe("auth proxy guard", () => {
     expect(res.headers.get("location")).toContain("/login");
   });
 
+  it("redirects /customers unauthenticated with callbackURL", () => {
+    const res = proxy(makeRequest("/customers"));
+    expect(res.status).toBe(307);
+    const loc = res.headers.get("location")!;
+    expect(loc).toContain("/login");
+    expect(loc).toContain(encodeURIComponent("/customers"));
+    expect(proxy(makeRequest("/customers", true)).status).toBe(200);
+  });
+
   it("keeps /login and /signup public for visitors", () => {
     expect(proxy(makeRequest("/login")).status).toBe(200);
     expect(proxy(makeRequest("/signup")).status).toBe(200);
