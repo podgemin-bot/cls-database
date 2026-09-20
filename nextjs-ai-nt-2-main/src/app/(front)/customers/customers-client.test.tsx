@@ -67,7 +67,7 @@ function renderPage(canEdit = true) {
 }
 
 const searchInput = () =>
-  screen.getByPlaceholderText("ค้นหา ชื่อบริษัท / ผู้ติดต่อ / เบอร์โทร...");
+  screen.getByRole("textbox", { name: "ค้นหาลูกค้า" });
 
 describe("CustomersClient — list & filters", () => {
   it("renders all customers and the visible count", () => {
@@ -120,38 +120,36 @@ describe("CustomersClient — create", () => {
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("เพิ่มลูกค้าใหม่")).toBeInTheDocument();
 
-    const nameInput = within(dialog).getByPlaceholderText("เช่น National Telecom");
+    const nameInput = within(dialog).getByLabelText("ชื่อบริษัท/หน่วยงาน *");
     fireEvent.change(nameInput, {
       target: { value: "New Co" },
     });
-    fireEvent.change(within(dialog).getByPlaceholderText("ชื่อ-นามสกุล"), {
+    fireEvent.change(within(dialog).getByLabelText("ผู้ติดต่อ *"), {
       target: { value: "John Doe" },
     });
-    fireEvent.change(within(dialog).getByPlaceholderText("0X-XXX-XXXX"), {
+    fireEvent.change(within(dialog).getByLabelText("เบอร์โทร *"), {
       target: { value: "084-000-0000" },
     });
-    const emailInput = dialog.querySelector('input[type="email"]') as HTMLInputElement;
-    fireEvent.change(emailInput, {
+    fireEvent.change(within(dialog).getByLabelText("อีเมล"), {
       target: { value: "x@y.z" },
     });
 
-    fireEvent.change(within(dialog).getAllByRole("combobox")[0], {
+    fireEvent.change(within(dialog).getByLabelText("ขั้นตอน *"), {
       target: { value: "RENTING" },
     });
     expect(within(dialog).getByText("ข้อมูลสัญญาเช่า")).toBeInTheDocument();
 
     await user.click(within(dialog).getByRole("checkbox", { name: /PKB-F1-R01/ }));
-    fireEvent.change(within(dialog).getByPlaceholderText("NT-2026-001"), {
+    fireEvent.change(within(dialog).getByLabelText("เลขที่สัญญา"), {
       target: { value: "NT-2026-002" },
     });
-    const dateInputs = Array.from(dialog.querySelectorAll('input[type="date"]')) as HTMLInputElement[];
-    fireEvent.change(dateInputs[0], {
+    fireEvent.change(within(dialog).getByLabelText("วันเริ่มสัญญา"), {
       target: { value: "2026-10-01" },
     });
-    fireEvent.change(dateInputs[1], {
+    fireEvent.change(within(dialog).getByLabelText("วันสิ้นสุดสัญญา"), {
       target: { value: "2027-09-30" },
     });
-    fireEvent.change(within(dialog).getByPlaceholderText("ผลการโทร, นัดดูห้อง, ใบเสนอราคา..."), {
+    fireEvent.change(within(dialog).getByLabelText("หมายเหตุการติดตาม"), {
       target: { value: "ติดตามแล้ว" },
     });
 
@@ -184,7 +182,7 @@ describe("CustomersClient — create", () => {
 
     await user.click(screen.getByRole("button", { name: "เพิ่มลูกค้า" }));
     const dialog = screen.getByRole("dialog");
-    fireEvent.change(within(dialog).getByPlaceholderText("เช่น National Telecom"), {
+    fireEvent.change(within(dialog).getByLabelText("ชื่อบริษัท/หน่วยงาน *"), {
       target: { value: "X" },
     });
     await user.click(within(dialog).getByRole("button", { name: "บันทึก" }));
@@ -207,10 +205,10 @@ describe("CustomersClient — edit", () => {
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("แก้ไขลูกค้า: CUST-001")).toBeInTheDocument();
 
-    const nameInput = within(dialog).getByPlaceholderText("เช่น National Telecom");
+    const nameInput = within(dialog).getByLabelText("ชื่อบริษัท/หน่วยงาน *");
     expect(nameInput).toHaveValue("National Telecom");
 
-    fireEvent.change(within(dialog).getByPlaceholderText("ชื่อ-นามสกุล"), {
+    fireEvent.change(within(dialog).getByLabelText("ผู้ติดต่อ *"), {
       target: { value: "สมชาย ใหม่" },
     });
     await user.click(within(dialog).getByRole("checkbox", { name: /PKB-F1-R02/ }));

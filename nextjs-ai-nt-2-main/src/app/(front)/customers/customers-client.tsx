@@ -3,8 +3,8 @@
 import { useMemo, useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -149,6 +149,7 @@ export default function CustomersClient({ customers, availableRooms, canEdit }: 
       <div className="flex flex-wrap items-center gap-2">
         <Input
           className="h-9 max-w-xs"
+          aria-label="ค้นหาลูกค้า"
           placeholder="ค้นหา ชื่อบริษัท / ผู้ติดต่อ / เบอร์โทร..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -269,8 +270,8 @@ export default function CustomersClient({ customers, availableRooms, canEdit }: 
   );
 }
 
-function label(text: string) {
-  return <Label className="text-xs leading-none text-muted-foreground">{text}</Label>;
+function label(text: string, htmlFor?: string) {
+  return <FieldLabel htmlFor={htmlFor} className="text-xs leading-none text-muted-foreground">{text}</FieldLabel>;
 }
 
 function CustomerFormDialog({
@@ -351,16 +352,18 @@ function CustomerFormDialog({
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <div className="space-y-1">
-            {label("ชื่อบริษัท/หน่วยงาน *")}
+            {label("ชื่อบริษัท/หน่วยงาน *", "cust-name")}
             <Input
+              id="cust-name"
               value={form.name}
               onChange={(e) => set({ name: e.target.value })}
               placeholder="เช่น National Telecom"
             />
           </div>
           <div className="space-y-1">
-            {label("ขั้นตอน *")}
+            {label("ขั้นตอน *", "cust-stage")}
             <select
+              id="cust-stage"
               className={selectCls}
               value={form.stage}
               onChange={(e) => set({ stage: e.target.value })}
@@ -373,28 +376,31 @@ function CustomerFormDialog({
             </select>
           </div>
           <div className="space-y-1">
-            {label("วันที่สอบถาม")}
-            <Input value={fmtDate(customer?.inquiryDate ?? null)} disabled />
+            {label("วันที่สอบถาม", "cust-inquiry-date")}
+            <Input id="cust-inquiry-date" value={fmtDate(customer?.inquiryDate ?? null)} disabled />
           </div>
           <div className="space-y-1">
-            {label("ผู้ติดต่อ *")}
+            {label("ผู้ติดต่อ *", "cust-contact-name")}
             <Input
+              id="cust-contact-name"
               value={form.contactName}
               onChange={(e) => set({ contactName: e.target.value })}
               placeholder="ชื่อ-นามสกุล"
             />
           </div>
           <div className="space-y-1">
-            {label("เบอร์โทร *")}
+            {label("เบอร์โทร *", "cust-contact-phone")}
             <Input
+              id="cust-contact-phone"
               value={form.contactPhone}
               onChange={(e) => set({ contactPhone: e.target.value })}
               placeholder="0X-XXX-XXXX"
             />
           </div>
           <div className="space-y-1">
-            {label("อีเมล")}
+            {label("อีเมล", "cust-contact-email")}
             <Input
+              id="cust-contact-email"
               type="email"
               value={form.contactEmail}
               onChange={(e) => set({ contactEmail: e.target.value })}
@@ -433,24 +439,27 @@ function CustomerFormDialog({
             <div className="mb-2 text-xs font-semibold text-muted-foreground">ข้อมูลสัญญาเช่า</div>
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1">
-                {label("เลขที่สัญญา")}
+                {label("เลขที่สัญญา", "cust-contract-no")}
                 <Input
+                  id="cust-contract-no"
                   value={form.contractNo}
                   onChange={(e) => set({ contractNo: e.target.value })}
                   placeholder="NT-2026-001"
                 />
               </div>
               <div className="space-y-1">
-                {label("วันเริ่มสัญญา")}
+                {label("วันเริ่มสัญญา", "cust-contract-start")}
                 <Input
+                  id="cust-contract-start"
                   type="date"
                   value={form.contractStart}
                   onChange={(e) => set({ contractStart: e.target.value })}
                 />
               </div>
               <div className="space-y-1">
-                {label("วันสิ้นสุดสัญญา")}
+                {label("วันสิ้นสุดสัญญา", "cust-contract-end")}
                 <Input
+                  id="cust-contract-end"
                   type="date"
                   value={form.contractEnd}
                   onChange={(e) => set({ contractEnd: e.target.value })}
@@ -461,8 +470,9 @@ function CustomerFormDialog({
         )}
 
         <div className="space-y-1">
-          {label("หมายเหตุการติดตาม")}
+          {label("หมายเหตุการติดตาม", "cust-note")}
           <Textarea
+            id="cust-note"
             rows={3}
             value={form.note}
             onChange={(e) => set({ note: e.target.value })}

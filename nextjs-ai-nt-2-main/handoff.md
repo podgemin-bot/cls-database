@@ -103,6 +103,8 @@ npx.cmd prisma generate    # หลังแก้ schema
    - suite รวม: 24 ไฟล์ / **247 เทสต์** ✓
    - **E2E smoke จริงผ่าน dev server**: `scripts/admin-e2e-smoke.ts` (tsx) — bootstrap admin (sign-up + set role) → สร้าง user 3 บทบาท (ADMIN/EDITOR/VIEWER) → เช็คสิทธิ์ใช้งาน (/admin แสดง UI กับผู้ดูแล, แสดง "เฉพาะผู้ดูแลระบบ" กับ editor/viewer; /floorplan แสดง pin editor กับ admin/editor แต่ viewer เห็นเฉพาะ read-only) → ลบทั้ง 3 → ตรวจ cascade (user/session/account หาย) + cookie เก่า invalid + หน้า /admin ไม่แสดงคนถูกลบ — **21/21 PASS**, cleanup เองหมด (0 ผู้ใช้ค้าง) — **Gotcha**: better-auth `get-session` ไม่คืนคอลัมน์ `role` (custom column) → ตรวจสิทธิ์จาก DB เหมือนที่ RSC pages ทำ
 10. **Dashboard ทดสอบ** — `src/app/(front)/page.test.tsx` (6, jsdom, mock `@/lib/prisma` + `next/server`): header + รวมสถานี/ห้อง (ยืนยันผ่าน textContent ต้องใช้ function matcher เพราะตัวเลขอยู่ใน Badge ไม่ใช่ text node ตรง ๆ), legend สถานะครบ 4, site card ชื่อ/จว./GPS + ลิงก์ Google Maps, stats + floor shortcut `/rooms?floor=` + `ดูห้องทั้งหมดของCODE`, `prisma.room.groupBy` ถูกเรียก scoped ต่อ site (`siteId` where), สถานะที่ไม่มีค่า default 0 + site ไม่มี building/floors, empty state (0 site → ไม่เรียก groupBy)
+11. **P1 a11y ฟอร์มลูกค้า** — `customers-client.tsx`: แทนที่ `label()` ลอยๆ ด้วย `FieldLabel` + `htmlFor`/`id` ผูกทุกรายการ (`cust-name/stage/inquiry-date/contact-name/contact-phone/contact-email/contract-no/contract-start/contract-end/note`) + `aria-label="ค้นหาลูกค้า"` ช่องค้นหา; tests เปลี่ยนจาก placeholder/`querySelector('input[type=...]')` เป็น `getByLabelText` ครบ → ลบ Gotcha เดิมออกจากงานค้าง
+    - **E2E ใหม่** `scripts/customers-e2e-smoke.ts` (12 checks, จริงผ่าน dev server): EDITOR เห็น เพิ่ม/แก้ไข/ลบ, VIEWER เห็น read-only (เช็คปุ่ม gated ด้วย `aria-label` — เพราะ head "ดู / แก้ไข" แสดงเสมอ), guest อ่านได้เฉยๆ, data path (สร้างลูกค้า temp → เห็นในตาราง → cleanup), ลบ users แบบ cascade — **12/12 PASS**
 2. **Security page** — `shortOptionLabel` ตัดวงเล็บ (FM-200/Novec 1230), default "ไม่ติดตั้ง", backfill script
 3. **Customer page** — model + migration + UI ครบ + seed (`scripts/seed-customers.ts` 5 ราย)
 4. **Profile ทดสอบ** (commit `94b69ee`):
@@ -114,6 +116,6 @@ Dev server รันอยู่ที่ http://localhost:3000 (ดู log: `de
 ## งานค้าง / โน้ต
 - UI component test ครอบคลุมเพียบ (Lightbox, SecurityForm, LogoutMenu, Navbar, CustomersClient, AdminClient, EngineeringClient, LocationsClient, RoomsClient, FloorplanClient, ProfileClient, Dashboard + server actions ของ admin/engineering/locations/profile) — suite รวม 24 ไฟล์ / 247 เทสต์ ✓
 - **หมายเหตุ**: admin-client ใช้ <select> ธรรมดา (ไม่ใช่ radix Select) — นับ `combobox` ลำดับ: 0=สิทธิ์ฟอร์มสร้าง, แล้วไล่ตามแถวตาราง
-- **Gotcha**: ฟอร์มลูกค้า input หลายตัวไม่มี label association + placeholder (อีเมล/date) → test ใช้ `dialog.querySelector('input[type=...]')`
+- **~(แก้แล้ว)~ P1 a11y ฟอร์มลูกค้า**: `FieldLabel` + `htmlFor`/`id` ผูก label กับทุกช่องแล้ว (cust-name/stage/inquiry-date/contact-name/contact-phone/contact-email/contract-no/start/end/note) + `aria-label` ช่องค้นหา → เทสต์ใช้ `getByLabelText`/accessible name แทน placeholder/`querySelector('input[type=...]')` แล้ว (10 เทสต์)
 - `scripts/` มีสคริปต์แบบใช้ครั้งเดียว (backfill/normalize/seed) — รันซ้ำได้ปลอดภัย (upsert)
 - ตรวจ `git status` ให้สะอาดก่อนส่งต่องาน
