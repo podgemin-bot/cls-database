@@ -6,6 +6,7 @@ describe("PROFILE_ERROR_LABEL", () => {
     expect(PROFILE_ERROR_LABEL["invalid-password"]).toBe("รหัสผ่านปัจจุบันไม่ถูกต้อง");
     expect(PROFILE_ERROR_LABEL["password-too-short"]).toBe("รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร");
     expect(PROFILE_ERROR_LABEL["password-mismatch"]).toBe("รหัสผ่านไม่ตรงกัน");
+    expect(PROFILE_ERROR_LABEL["cannot-revoke-current"]).toBe("ไม่สามารถออกจากระบบอุปกรณ์นี้ได้");
     expect(PROFILE_ERROR_LABEL["unauthorized"]).toBe("กรุณาเข้าสู่ระบบ");
     expect(PROFILE_ERROR_LABEL["server-error"]).toBe("เกิดข้อผิดพลาด กรุณาลองใหม่");
   });

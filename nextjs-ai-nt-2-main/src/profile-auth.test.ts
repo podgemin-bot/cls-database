@@ -135,3 +135,46 @@ describe("Profile auth flows (real better-auth)", () => {
     expect(await getSession(refreshedToken)).toMatchObject({ user: { id: userId } });
   });
 });
+
+describe("Profile session management (real better-auth)", () => {
+  const rawToken = (encoded: string) => decodeURIComponent(encoded).split(".")[0];
+
+  it("lists every active session of the user", async () => {
+    const t1 = await signInToken(EMAIL, NEW_PASSWORD);
+    const t2 = await signInToken(EMAIL, NEW_PASSWORD);
+
+    const list = (await auth.api.listSessions({
+      headers: sessionHeaders(t1),
+    })) as unknown as { token: string }[] | null;
+
+    const tokens = (list ?? []).map((s) => s.token);
+    expect(tokens).toContain(rawToken(t1));
+    expect(tokens).toContain(rawToken(t2));
+    expect(await getSession(t2)).toMatchObject({ user: { id: userId } });
+  });
+
+  it("revokes a single other session and keeps the rest", async () => {
+    const t1 = await signInToken(EMAIL, NEW_PASSWORD);
+    const t2 = await signInToken(EMAIL, NEW_PASSWORD);
+
+    const res = (await auth.api.revokeSession({
+      headers: sessionHeaders(t1),
+      body: { token: rawToken(t2) },
+    })) as unknown;
+    expect(res).toBeTruthy();
+    expect(await getSession(t2)).toBeNull();
+    expect(await getSession(t1)).toMatchObject({ user: { id: userId } });
+  });
+
+  it("revokes all other sessions keeping only the current one", async () => {
+    const t1 = await signInToken(EMAIL, NEW_PASSWORD);
+    const t2 = await signInToken(EMAIL, NEW_PASSWORD);
+
+    const res = (await auth.api.revokeOtherSessions({
+      headers: sessionHeaders(t1),
+    })) as unknown;
+    expect(res).toBeTruthy();
+    expect(await getSession(t1)).toMatchObject({ user: { id: userId } });
+    expect(await getSession(t2)).toBeNull();
+  });
+});

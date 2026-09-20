@@ -89,3 +89,31 @@ export async function setUserRole(
     return { ok: false, error: "server-error" };
   }
 }
+
+export async function deleteUserAction(userId: string): Promise<AdminResult> {
+  const denied = await requireAdmin();
+  if (denied) return { ok: false, error: denied };
+
+  try {
+    const target = await prisma.user.findUnique({ where: { id: userId } });
+    if (!target) return { ok: false, error: "not-found" };
+
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (session?.user?.id === userId) {
+      return { ok: false, error: "cannot-delete-self" };
+    }
+
+    if (target.role === "ADMIN") {
+      const adminCount = await prisma.user.count({ where: { role: "ADMIN" } });
+      if (adminCount <= 1) {
+        return { ok: false, error: "cannot-delete-last-admin" };
+      }
+    }
+
+    await prisma.user.delete({ where: { id: userId } });
+    refresh();
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "server-error" };
+  }
+}

@@ -19,6 +19,23 @@ export type SerializedProfileUser = {
   createdAt: string;
 };
 
+export type SerializedSession = {
+  token: string;
+  userAgent: string;
+  ipAddress: string;
+  createdAt: string;
+  expiresAt: string;
+  isCurrent: boolean;
+};
+
+type BetterSession = {
+  token: string;
+  userAgent: string;
+  ipAddress: string;
+  createdAt: Date;
+  expiresAt: Date;
+};
+
 export default async function ProfilePage() {
   await connection();
 
@@ -47,6 +64,19 @@ export default async function ProfilePage() {
     createdAt: user.createdAt.toISOString(),
   };
 
+  const sessions = await auth.api
+    .listSessions({ headers: await headers() })
+    .catch(() => [] as BetterSession[]);
+
+  const serializedSessions: SerializedSession[] = (sessions ?? []).map((s) => ({
+    token: s.token,
+    userAgent: s.userAgent ?? "",
+    ipAddress: s.ipAddress ?? "",
+    createdAt: s.createdAt.toISOString(),
+    expiresAt: s.expiresAt.toISOString(),
+    isCurrent: s.token === session?.session?.token,
+  }));
+
   return (
     <div className="mx-auto max-w-(--breakpoint-xl) px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-6">
@@ -55,7 +85,7 @@ export default async function ProfilePage() {
           จัดการข้อมูลส่วนตัวและความปลอดภัยของบัญชี
         </p>
       </div>
-      <ProfileClient user={serialized} />
+      <ProfileClient user={serialized} sessions={serializedSessions} />
     </div>
   );
 }

@@ -2,6 +2,7 @@ export const PROFILE_ERROR_LABEL: Record<string, string> = {
   "invalid-password": "รหัสผ่านปัจจุบันไม่ถูกต้อง",
   "password-too-short": "รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร",
   "password-mismatch": "รหัสผ่านไม่ตรงกัน",
+  "cannot-revoke-current": "ไม่สามารถออกจากระบบอุปกรณ์นี้ได้",
   unauthorized: "กรุณาเข้าสู่ระบบ",
   "server-error": "เกิดข้อผิดพลาด กรุณาลองใหม่",
 };
