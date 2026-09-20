@@ -48,3 +48,6 @@ next-env.d.ts
 dev.log
 dev.err.log
 prod.log
+
+# local dev bookkeeping
+.dev-server.pid
