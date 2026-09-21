@@ -18,6 +18,11 @@ const mocks = vi.hoisted(() => ({
   deleteCertificate: vi.fn(),
   resolveNextAssetCode: vi.fn(),
   updateRoomSecurity: vi.fn(),
+  refresh: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: mocks.refresh }),
 }));
 
 vi.mock("./actions", () => ({

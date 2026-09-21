@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -133,6 +134,7 @@ export default function EngineeringClient({
   const [securityRead, setSecurityRead] = useState<SerializedRoomSecurityRow | null>(null);
   const [securityEdit, setSecurityEdit] = useState<SerializedRoomSecurityRow | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const router = useRouter();
   const [, startTransition] = useTransition();
 
   const powerSites = useMemo(
@@ -196,7 +198,11 @@ export default function EngineeringClient({
     setActionError(null);
     startTransition(async () => {
       const res = await deleteAsset(a.id);
-      if (!res.ok && res.error) setActionError(ENG_ERROR_LABEL[res.error] ?? "เกิดข้อผิดพลาด");
+      if (!res.ok && res.error) {
+        setActionError(ENG_ERROR_LABEL[res.error] ?? "เกิดข้อผิดพลาด");
+        return;
+      }
+      router.refresh();
     });
   }
 
@@ -205,7 +211,11 @@ export default function EngineeringClient({
     setActionError(null);
     startTransition(async () => {
       const res = await deleteCertificate(c.id);
-      if (!res.ok && res.error) setActionError(ENG_ERROR_LABEL[res.error] ?? "เกิดข้อผิดพลาด");
+      if (!res.ok && res.error) {
+        setActionError(ENG_ERROR_LABEL[res.error] ?? "เกิดข้อผิดพลาด");
+        return;
+      }
+      router.refresh();
     });
   }
 
@@ -849,6 +859,7 @@ function SecurityEditDialog({
   row: SerializedRoomSecurityRow;
   onClose: () => void;
 }) {
+  const router = useRouter();
   const [, startTransition] = useTransition();
   const sec: SecurityData = {
     cctvCount: row.cctvCount,
@@ -880,6 +891,7 @@ function SecurityEditDialog({
         }
         setSuccess("บันทึกเรียบร้อย");
         onClose();
+        router.refresh();
       } catch {
         setError("server-error");
       } finally {
@@ -965,6 +977,7 @@ function AssetDialog({
   hierarchy: EngHierarchySite[];
   onClose: () => void;
 }) {
+  const router = useRouter();
   const [, startTransition] = useTransition();
   const editing =
     dialog.mode === "edit"
@@ -1096,6 +1109,7 @@ function AssetDialog({
         }
         setSuccess("บันทึกเรียบร้อย");
         onClose();
+        router.refresh();
       } catch {
         setError("server-error");
       } finally {
@@ -1364,6 +1378,7 @@ function CertDialog({
   hierarchy: EngHierarchySite[];
   onClose: () => void;
 }) {
+  const router = useRouter();
   const [, startTransition] = useTransition();
   const editing = dialog.mode === "edit" ? dialog.cert : null;
 
@@ -1413,6 +1428,7 @@ function CertDialog({
         }
         setSuccess("บันทึกเรียบร้อย");
         onClose();
+        router.refresh();
       } catch {
         setError("server-error");
       } finally {
