@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -470,6 +471,7 @@ function EditRoomDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const router = useRouter();
   const [, startTransition] = useTransition();
 
   const [name, setName] = useState(room.name);
@@ -528,6 +530,7 @@ function EditRoomDialog({
       if (!r1.ok && r1.error) return setError(r1.error);
       if (!r2.ok && r2.error) return setError(r2.error);
       setSuccess("บันทึกข้อมูลห้องเรียบร้อย");
+      router.refresh();
     });
   }
 
@@ -542,6 +545,7 @@ function EditRoomDialog({
       setBusy(false);
       if (!res.ok) return setError(res.error ?? "server-error");
       setSuccess("อัปโหลดรูปเรียบร้อย");
+      router.refresh();
     });
     if (fileRef.current) fileRef.current.value = "";
   }
@@ -557,6 +561,7 @@ function EditRoomDialog({
       setBusy(false);
       if (!res.ok) return setError(res.error ?? "server-error");
       setSuccess("ลบรูปเรียบร้อย");
+      router.refresh();
     });
   }
 

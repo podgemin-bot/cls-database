@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FieldLabel } from "@/components/ui/field";
@@ -108,6 +109,7 @@ type CustomerFormValue = {
 };
 
 export default function CustomersClient({ customers, availableRooms, canEdit }: Props) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [stageFilter, setStageFilter] = useState("");
   const [editing, setEditing] = useState<SerializedCustomer | "new" | null>(null);
@@ -138,7 +140,9 @@ export default function CustomersClient({ customers, availableRooms, canEdit }: 
       const res = await deleteCustomer(c.id);
       if (!res.ok) {
         alert(ERROR_LABEL[res.error ?? "server-error"] ?? "เกิดข้อผิดพลาด");
+        return;
       }
+      router.refresh();
     });
   }
 
@@ -284,6 +288,7 @@ function CustomerFormDialog({
   onClose: () => void;
 }) {
   const [, startTransition] = useTransition();
+  const router = useRouter();
   const [form, setForm] = useState<CustomerFormValue>(() =>
     customer ? formFromCustomer(customer) : emptyForm()
   );
@@ -324,6 +329,7 @@ function CustomerFormDialog({
           return;
         }
         onClose();
+        router.refresh();
       } catch {
         setError("server-error");
       } finally {

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   Dialog,
   DialogContent,
@@ -83,6 +84,7 @@ const ERROR_LABEL: Record<string, string> = {
 type Level = "sites" | "buildings" | "floors" | "rooms"
 
 export default function LocationsClient({ sites, buildings, floors, rooms, canEdit }: Props) {
+  const router = useRouter()
   const [siteId, setSiteId] = useState<number | null>(null)
   const [buildingId, setBuildingId] = useState<number | null>(null)
   const [floorId, setFloorId] = useState<number | null>(null)
@@ -308,6 +310,14 @@ export default function LocationsClient({ sites, buildings, floors, rooms, canEd
     if (window.confirm(`ลบ${detail} แน่ใจหรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้`)) fn()
   }
 
+  // Helper to run a server action and return an error label (or null)
+  function runAction(fn: () => Promise<{ ok: boolean; error?: string }>): Promise<string | null> {
+    return fn().then((r) => {
+      if (r.ok) router.refresh()
+      return r.ok ? null : (r.error ?? "server-error")
+    })
+  }
+
   // ---- save handlers ----
   function doCreateSite(_id: number, input: SiteInput) {
     return runAction(async () => createSite(input))
@@ -345,11 +355,6 @@ export default function LocationsClient({ sites, buildings, floors, rooms, canEd
   function doDeleteRoom(id: number) {
     return runAction(async () => deleteRoom(id))
   }
-}
-
-// Helper to run a server action and return an error label (or null)
-function runAction(fn: () => Promise<{ ok: boolean; error?: string }>): Promise<string | null> {
-  return fn().then((r) => (r.ok ? null : (r.error ?? "server-error")))
 }
 
 // ==================== SITES VIEW ====================

@@ -8,6 +8,11 @@ const mocks = vi.hoisted(() => ({
   updateRoomSecurity: vi.fn(),
   uploadRoomPhoto: vi.fn(),
   deleteRoomPhoto: vi.fn(),
+  refresh: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: mocks.refresh }),
 }));
 
 vi.mock("./actions", () => ({
@@ -218,6 +223,7 @@ function mocksOk() {
   mocks.uploadRoomPhoto.mockResolvedValue({ ok: true });
   mocks.deleteRoomPhoto.mockReset();
   mocks.deleteRoomPhoto.mockResolvedValue({ ok: true });
+  mocks.refresh.mockReset();
 }
 
 const siteSel = () => screen.getAllByRole("combobox")[0] as HTMLSelectElement;
@@ -387,6 +393,7 @@ describe("RoomsClient", () => {
       )
     );
     expect(await screen.findByText("บันทึกข้อมูลห้องเรียบร้อย")).toBeInTheDocument();
+    expect(mocks.refresh).toHaveBeenCalled();
   });
 
   it("maps a server error to a readable label on save", async () => {

@@ -6,6 +6,11 @@ const mocks = vi.hoisted(() => ({
   createCustomer: vi.fn(),
   updateCustomer: vi.fn(),
   deleteCustomer: vi.fn(),
+  refresh: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: mocks.refresh }),
 }));
 
 vi.mock("./actions", () => ({
@@ -173,6 +178,7 @@ describe("CustomersClient — create", () => {
     await waitFor(() =>
       expect(screen.queryByText("เพิ่มลูกค้าใหม่")).not.toBeInTheDocument()
     );
+    expect(mocks.refresh).toHaveBeenCalled();
   });
 
   it("shows the mapped error and keeps the dialog open on failure", async () => {
@@ -252,6 +258,7 @@ describe("CustomersClient — delete", () => {
 
     expect(mocks.deleteCustomer).toHaveBeenCalledTimes(1);
     expect(mocks.deleteCustomer).toHaveBeenCalledWith(2);
+    await waitFor(() => expect(mocks.refresh).toHaveBeenCalled());
   });
 });
 

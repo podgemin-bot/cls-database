@@ -21,6 +21,11 @@ const mocks = vi.hoisted(() => ({
   createRoom: vi.fn(),
   updateRoom: vi.fn(),
   deleteRoom: vi.fn(),
+  refresh: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: mocks.refresh }),
 }));
 
 vi.mock("./actions", () => ({
@@ -130,6 +135,7 @@ function mocksOk() {
   mocks.createRoom.mockResolvedValue({ ok: true });
   mocks.updateRoom.mockResolvedValue({ ok: true });
   mocks.deleteRoom.mockResolvedValue({ ok: true });
+  mocks.refresh.mockReset();
 }
 
 function goToBuildings() {
@@ -188,6 +194,7 @@ describe("LocationsClient — sites level", () => {
         expect.objectContaining({ code: "PAK", name: "สถานี ป.", province: "กรุงเทพ", lat: "13.7", lng: "100.5" })
       )
     );
+    await vi.waitFor(() => expect(mocks.refresh).toHaveBeenCalled());
   });
 
   it("shows the mapped error when site creation fails", async () => {
