@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -78,6 +79,7 @@ export default function FloorplanClient({
 
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
   const [lightbox, setLightbox] = useState<{ images: RoomPhotoFile[]; index: number } | null>(null);
+  const router = useRouter();
 
   const siteFloors = useMemo(
     () => floors.filter((f) => f.siteCode === siteCode),
@@ -116,6 +118,7 @@ export default function FloorplanClient({
         return;
       }
       setOverrides((m) => ({ ...m, [roomId]: { x: px, y: py } }));
+      router.refresh();
     });
   }
 

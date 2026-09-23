@@ -5,10 +5,14 @@ import type { RoomStatus, SerializedFloorPlan } from "@/lib/cls";
 
 const mocks = vi.hoisted(() => ({
   savePin: vi.fn(),
+  refresh: vi.fn(),
 }));
 
 vi.mock("./actions", () => ({
   savePin: mocks.savePin,
+}));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: mocks.refresh }),
 }));
 vi.mock("@/components/lightbox", () => ({
   Lightbox: () => null,
@@ -123,6 +127,7 @@ function renderPage(canEdit = true, initialFloor = "") {
 function mocksOk() {
   mocks.savePin.mockReset();
   mocks.savePin.mockResolvedValue({ ok: true });
+  mocks.refresh.mockReset();
 }
 
 const R1_PIN = "S1-B01-F01-R01 · ห้องเครื่อง AC";
@@ -257,6 +262,7 @@ describe("FloorplanClient", () => {
       expect(screen.getByTitle("S1-B01-F01-R02 · ห้องเซิร์ฟเวอร์")).toBeInTheDocument()
     );
     expect(screen.getByText("ห้องบนผัง (3)")).toBeInTheDocument();
+    await vi.waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(1));
   });
 
   it("shows the forbidden hint when a pin save is rejected", async () => {
@@ -282,6 +288,7 @@ describe("FloorplanClient", () => {
 
     fireEvent.click(img, { clientX: 50, clientY: 25 });
     expect(await screen.findByText(/บันทึกไม่สำเร็จ — ต้องเป็น admin\/editor/)).toBeInTheDocument();
+    expect(mocks.refresh).not.toHaveBeenCalled();
   });
 
   it("hides the editor and disables pinning when canEdit is false", async () => {
