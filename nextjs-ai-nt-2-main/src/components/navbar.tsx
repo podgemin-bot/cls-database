@@ -26,9 +26,9 @@ const Navbar = async () => {
       <div className="mx-auto flex h-full max-w-(--breakpoint-xl) items-center justify-between px-4 sm:px-6 lg:px-8">
         <Logo />
 
-        <NavMenu className="hidden md:block" isAdmin={isAdmin} isLoggedIn={!!session} />
+        <NavMenu className="hidden xl:block" isAdmin={isAdmin} isLoggedIn={!!session} />
 
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-3">
           {!session && (
             <Button asChild>
               <Link href="/login">เข้าสู่ระบบ</Link>
@@ -37,14 +37,14 @@ const Navbar = async () => {
 
           {session && (
             <>
-              <div className="mr-2 hidden items-center sm:flex">
+              <div className="mr-2 hidden max-w-48 items-center truncate whitespace-nowrap sm:flex">
                 สวัสดี, {session.user.name}
               </div>
               <LogoutButton />
             </>
           )}
 
-          <div className="md:hidden">
+          <div className="xl:hidden">
             <NavigationSheet isAdmin={isAdmin} isLoggedIn={!!session} />
           </div>
         </div>

@@ -26,7 +26,7 @@ export const NavigationSheet = ({
       </VisuallyHidden>
 
       <SheetTrigger asChild>
-        <Button size="icon" variant="outline">
+        <Button size="icon" variant="outline" aria-label="เปิดเมนูนำทาง">
           <Menu />
         </Button>
       </SheetTrigger>

@@ -1,20 +1,30 @@
 "use client"
 
 import * as React from "react"
+import { ArrowLeftRight } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
-    <div
-      data-slot="table-container"
-      className="relative w-full overflow-x-auto"
-    >
-      <table
-        data-slot="table"
-        className={cn("w-full caption-bottom text-sm", className)}
-        {...props}
-      />
+    <div data-slot="table-wrapper" className="w-full">
+      <p
+        data-slot="table-scroll-hint"
+        className="flex items-center gap-1.5 border-b bg-muted/30 px-3 py-2 text-xs text-muted-foreground md:hidden"
+      >
+        <ArrowLeftRight className="size-3.5 shrink-0" aria-hidden="true" />
+        ปัดซ้าย-ขวาเพื่อดูข้อมูลเพิ่มเติม
+      </p>
+      <div
+        data-slot="table-container"
+        className="relative w-full overflow-x-auto"
+      >
+        <table
+          data-slot="table"
+          className={cn("w-full caption-bottom text-sm", className)}
+          {...props}
+        />
+      </div>
     </div>
   )
 }

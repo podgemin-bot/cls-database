@@ -63,8 +63,11 @@ type AuthCallbacks = {
   onError?: (ctx: { error: { code?: string } }) => void;
 };
 
-function renderUi(sessions: SerializedSession[] = [CURRENT, OTHER]) {
-  render(<ProfileClient user={USER} sessions={sessions} />);
+function renderUi(
+  sessions: SerializedSession[] = [CURRENT, OTHER],
+  user: SerializedProfileUser = USER
+) {
+  render(<ProfileClient user={user} sessions={sessions} />);
 }
 
 function formOf(buttonName: string): HTMLFormElement {
@@ -115,6 +118,13 @@ describe("ProfileClient - info card", () => {
   it("prefills the name input with the current name", () => {
     renderUi();
     expect(screen.getByLabelText("ชื่อ")).toHaveValue("สมชาย ใจดี");
+  });
+
+  it("allows a long email address to wrap on narrow screens", () => {
+    const email = "a-very-long-profile-email-address@example.test.local";
+    renderUi([CURRENT], { ...USER, email });
+
+    expect(screen.getByText(email)).toHaveClass("break-all");
   });
 });
 

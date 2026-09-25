@@ -14,23 +14,19 @@ vi.mock("next/link", () => ({
 
 import { NavigationSheet } from "./navigation-sheet";
 
-function sheetTrigger(container: HTMLElement): HTMLElement {
-  const trigger = container.querySelector('[data-slot="sheet-trigger"]');
-  if (!trigger) throw new Error("sheet trigger not found");
-  return trigger as HTMLElement;
-}
-
 describe("NavigationSheet", () => {
-  it("shows the mobile menu trigger button", () => {
-    const { container } = render(<NavigationSheet />);
-    expect(sheetTrigger(container)).toBeInTheDocument();
+  it("shows an accessible mobile menu trigger button", () => {
+    render(<NavigationSheet />);
+    expect(
+      screen.getByRole("button", { name: "เปิดเมนูนำทาง" })
+    ).toBeInTheDocument();
   });
 
   it("opens the sheet and renders base navigation links", async () => {
     const user = (await import("@testing-library/user-event")).default;
-    const { container } = render(<NavigationSheet isLoggedIn isAdmin />);
+    render(<NavigationSheet isLoggedIn isAdmin />);
 
-    await user.click(sheetTrigger(container));
+    await user.click(screen.getByRole("button", { name: "เปิดเมนูนำทาง" }));
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText("แดชบอร์ด")).toHaveAttribute("href", "/");
@@ -40,9 +36,9 @@ describe("NavigationSheet", () => {
 
   it("does not show profile/admin links when not logged in", async () => {
     const user = (await import("@testing-library/user-event")).default;
-    const { container } = render(<NavigationSheet />);
+    render(<NavigationSheet />);
 
-    await user.click(sheetTrigger(container));
+    await user.click(screen.getByRole("button", { name: "เปิดเมนูนำทาง" }));
 
     expect(screen.getByText("แดชบอร์ด")).toBeInTheDocument();
     expect(screen.queryByText("โปรไฟล์")).not.toBeInTheDocument();

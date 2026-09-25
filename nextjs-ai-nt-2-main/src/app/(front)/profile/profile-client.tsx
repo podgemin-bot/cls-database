@@ -191,7 +191,7 @@ export default function ProfileClient({ user, sessions }: Props) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -212,7 +212,7 @@ export default function ProfileClient({ user, sessions }: Props) {
               <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
                 <Mail className="size-4" /> อีเมล
               </p>
-              <p className="font-mono text-sm">{user.email}</p>
+              <p className="break-all font-mono text-sm">{user.email}</p>
             </div>
             <div>
               <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -271,18 +271,18 @@ export default function ProfileClient({ user, sessions }: Props) {
                     key={s.token}
                     className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
                   >
-                    <div className="flex items-start gap-3">
-                      <Laptop className="mt-0.5 size-5 text-muted-foreground" />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <Laptop className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="break-words text-sm font-medium">
                             {deviceLabel(s.userAgent)}
                           </p>
                           {s.isCurrent && (
                             <Badge className="shrink-0">อุปกรณ์นี้</Badge>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="break-words text-xs text-muted-foreground">
                           {s.ipAddress || "ไม่ทราบ IP"} · เข้าสู่ระบบเมื่อ{" "}
                           {fmtDateTime(s.createdAt)} · หมดอายุ{" "}
                           {fmtDateTime(s.expiresAt)}
@@ -356,7 +356,7 @@ export default function ProfileClient({ user, sessions }: Props) {
         </Card>
       </div>
 
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
