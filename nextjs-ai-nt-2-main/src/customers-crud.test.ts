@@ -139,4 +139,40 @@ describe("customer CRUD actions (real DB, auth mocked)", () => {
     expect(res.ok).toBe(false);
     expect(res.error).toBe("not-found");
   });
+
+  it("never reissues a code after that customer is deleted", async () => {
+    const first = await createCustomer(input({ name: "TEST รหัสซ้ำ A" }));
+    expect(first.ok).toBe(true);
+    const rowA = await prisma.customer.findFirst({ where: { name: "TEST รหัสซ้ำ A" } });
+    expect(rowA).not.toBeNull();
+    createdIds.push(rowA!.id);
+
+    expect((await deleteCustomer(rowA!.id)).ok).toBe(true);
+
+    const second = await createCustomer(input({ name: "TEST รหัสซ้ำ B" }));
+    expect(second.ok).toBe(true);
+    const rowB = await prisma.customer.findFirst({ where: { name: "TEST รหัสซ้ำ B" } });
+    expect(rowB).not.toBeNull();
+    createdIds.push(rowB!.id);
+
+    const numA = Number(rowA!.code.replace("CUST-", ""));
+    const numB = Number(rowB!.code.replace("CUST-", ""));
+    expect(rowB!.code).not.toBe(rowA!.code);
+    expect(numB).toBeGreaterThan(numA);
+  });
+
+  it("issues a distinct code to every concurrent create", async () => {
+    const results = await Promise.all(
+      [1, 2, 3, 4, 5].map((i) => createCustomer(input({ name: `TEST ขนาน ${i}` }))),
+    );
+    expect(results.every((r) => r.ok)).toBe(true);
+
+    const rows = await prisma.customer.findMany({
+      where: { name: { startsWith: "TEST ขนาน " } },
+      select: { id: true, code: true },
+    });
+    createdIds.push(...rows.map((r) => r.id));
+    expect(rows).toHaveLength(5);
+    expect(new Set(rows.map((r) => r.code)).size).toBe(5);
+  });
 });

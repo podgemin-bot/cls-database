@@ -108,6 +108,23 @@ async function main() {
       created++
     }
   }
+
+  // Keep the issued-code counter at or above the highest seeded code, otherwise a
+  // fresh database would hand out CUST-001 again on the first UI create.
+  const highestSeeded = SEED.reduce(
+    (max, item) => Math.max(max, Number(item.code.replace(/^CUST-/, "")) || 0),
+    0,
+  )
+  const seq = await prisma.codeSequence.findUnique({ where: { prefix: "CUST" } })
+  if (!seq) {
+    await prisma.codeSequence.create({ data: { prefix: "CUST", lastValue: highestSeeded } })
+  } else if (seq.lastValue < highestSeeded) {
+    await prisma.codeSequence.update({
+      where: { prefix: "CUST" },
+      data: { lastValue: highestSeeded },
+    })
+  }
+
   console.log(`created=${created} updated=${updated}`)
   await prisma.$disconnect()
 }

@@ -24,13 +24,38 @@ const strOrNull = (v: string): string | null => {
   return s ? s : null
 }
 
-async function nextCode(): Promise<string> {
-  const last = await prisma.customer.findFirst({
-    orderBy: { code: "desc" },
-    select: { code: true },
+const CUSTOMER_CODE_PREFIX = "CUST"
+
+async function allocateCodeValue(): Promise<number> {
+  return prisma.$transaction(async (tx) => {
+    const bumped = await tx.codeSequence.updateMany({
+      where: { prefix: CUSTOMER_CODE_PREFIX },
+      data: { lastValue: { increment: 1 } },
+    })
+    if (bumped.count === 0) {
+      const created = await tx.codeSequence.create({
+        data: { prefix: CUSTOMER_CODE_PREFIX, lastValue: 1 },
+      })
+      return created.lastValue
+    }
+    const seq = await tx.codeSequence.findUniqueOrThrow({
+      where: { prefix: CUSTOMER_CODE_PREFIX },
+    })
+    return seq.lastValue
   })
-  const n = last ? Number(last.code.replace(/^CUST-/, "")) || 0 : 0
-  return `CUST-${String(n + 1).padStart(3, "0")}`
+}
+
+async function nextCode(): Promise<string> {
+  let lastValue = 0
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      lastValue = await allocateCodeValue()
+      break
+    } catch (err) {
+      if (attempt === 2) throw err
+    }
+  }
+  return `${CUSTOMER_CODE_PREFIX}-${String(lastValue).padStart(3, "0")}`
 }
 
 export type CustomerInput = {
