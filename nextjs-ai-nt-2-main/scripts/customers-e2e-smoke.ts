@@ -72,6 +72,7 @@ async function main() {
   const emailViewer = `smoke-c-viewer-${suffix}@test.local`
   const smokeCode = `CUST-SMK-${suffix}`.slice(0, 20)
   const smokeName = `Smoke Test Co ${suffix}`
+  const smokePosition = `Smoke Position ${suffix}`
 
   // ---------- Phase A: create editor + viewer users ----------
   console.log("\n== Phase A: create users ==")
@@ -107,6 +108,7 @@ async function main() {
       name: smokeName,
       stage: "INQUIRY",
       contactName: "Smoke Contact",
+      contactPosition: smokePosition,
       contactPhone: "099-000-0000",
       contactEmail: `smoke-${suffix}@test.local`,
       inquiryDate: new Date(),
@@ -115,7 +117,10 @@ async function main() {
   check("created temp customer in DB", created.id > 0, smokeCode)
 
   const afterHtml = await (await get("/customers", jarEditor)).text()
-  check("EDITOR: new customer visible in list", afterHtml.includes(smokeName))
+  check(
+    "EDITOR: new customer contact fields visible in list",
+    afterHtml.includes(smokeName) && afterHtml.includes(smokePosition)
+  )
 
   // cleanup the temp customer here (also covered by finally below)
   await prisma.customer.delete({ where: { id: created.id } })

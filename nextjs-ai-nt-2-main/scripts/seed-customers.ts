@@ -10,6 +10,7 @@ const SEED: {
   name: string
   stage: string
   contactName: string
+  contactPosition: string | null
   contactPhone: string
   contactEmail: string | null
   interestedRooms: string[]
@@ -23,6 +24,7 @@ const SEED: {
     name: "National Telecom",
     stage: "RENTING",
     contactName: "คุณสมชาย ใจดี",
+    contactPosition: "ผู้จัดการฝ่ายโครงข่าย",
     contactPhone: "08X-XXX-XXXX",
     contactEmail: "contracts@nt.co.th",
     interestedRooms: ["PKB-B01-F03-R01"],
@@ -36,6 +38,7 @@ const SEED: {
     name: "AIS",
     stage: "ROOM_INQUIRY",
     contactName: "คุณวิชัย แซ่ลิ้ม",
+    contactPosition: "วิศวกรโครงข่าย",
     contactPhone: "08X-XXX-XXXX",
     contactEmail: "siteops@ais.co.th",
     interestedRooms: ["SKA-B01-F02-R02"],
@@ -49,6 +52,7 @@ const SEED: {
     name: "True IDC",
     stage: "RENTING",
     contactName: "คุณกมลทิพย์ ศรีทอง",
+    contactPosition: "ผู้จัดการศูนย์ข้อมูล",
     contactPhone: "08X-XXX-XXXX",
     contactEmail: "trueidc@truecorp.co.th",
     interestedRooms: ["PKB-B01-F02-R02", "PKB-B01-F02-R03"],
@@ -62,6 +66,7 @@ const SEED: {
     name: "UniNet (มหาวิทยาลัยสงขลานครินทร์)",
     stage: "ROOM_INQUIRY",
     contactName: "คุณนภัสสร เจริญผล",
+    contactPosition: "เจ้าหน้าที่ประสานงาน",
     contactPhone: "08X-XXX-XXXX",
     contactEmail: "uninet@psu.ac.th",
     interestedRooms: ["PKB-B01-F02-R01"],
@@ -75,6 +80,7 @@ const SEED: {
     name: "บริษัท ทีเอสซี เทคโนโลยี จำกัด",
     stage: "INQUIRY",
     contactName: "คุณธนกร พูลสวัสดิ์",
+    contactPosition: "ผู้จัดการโครงการ",
     contactPhone: "08X-XXX-XXXX",
     contactEmail: "admin@tsc-tech.co.th",
     interestedRooms: [],

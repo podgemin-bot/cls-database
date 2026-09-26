@@ -39,12 +39,8 @@ import { Building2, Eye, Pencil, Phone, Plus, Trash2, UserRound } from "lucide-r
 
 type Props = {
   customers: SerializedCustomer[];
-  availableRooms: { code: string; name: string }[];
   canEdit: boolean;
 };
-
-const selectCls =
-  "h-9 rounded-md border bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring";
 
 const ERROR_LABEL: Record<string, string> = {
   unauthorized: "กรุณาเข้าสู่ระบบ",
@@ -68,14 +64,10 @@ function stageOf(v: string): CustomerStage {
 function emptyForm(): CustomerFormValue {
   return {
     name: "",
-    stage: "INQUIRY",
     contactName: "",
+    contactPosition: "",
     contactPhone: "",
     contactEmail: "",
-    interestedRooms: [] as string[],
-    contractNo: "",
-    contractStart: "",
-    contractEnd: "",
     note: "",
   };
 }
@@ -83,35 +75,26 @@ function emptyForm(): CustomerFormValue {
 function formFromCustomer(c: SerializedCustomer): CustomerFormValue {
   return {
     name: c.name,
-    stage: c.stage,
     contactName: c.contactName,
+    contactPosition: c.contactPosition ?? "",
     contactPhone: c.contactPhone,
     contactEmail: c.contactEmail ?? "",
-    interestedRooms: c.interestedRooms,
-    contractNo: c.contractNo ?? "",
-    contractStart: c.contractStart ? c.contractStart.slice(0, 10) : "",
-    contractEnd: c.contractEnd ? c.contractEnd.slice(0, 10) : "",
     note: c.note ?? "",
   };
 }
 
 type CustomerFormValue = {
   name: string;
-  stage: string;
   contactName: string;
+  contactPosition: string;
   contactPhone: string;
   contactEmail: string;
-  interestedRooms: string[];
-  contractNo: string;
-  contractStart: string;
-  contractEnd: string;
   note: string;
 };
 
-export default function CustomersClient({ customers, availableRooms, canEdit }: Props) {
+export default function CustomersClient({ customers, canEdit }: Props) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [stageFilter, setStageFilter] = useState("");
   const [editing, setEditing] = useState<SerializedCustomer | "new" | null>(null);
   const [viewing, setViewing] = useState<SerializedCustomer | null>(null);
   const [, startTransition] = useTransition();
@@ -119,20 +102,20 @@ export default function CustomersClient({ customers, availableRooms, canEdit }: 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return customers.filter((c) => {
-      if (stageFilter && c.stage !== stageFilter) return false;
       if (!q) return true;
-      return [c.code, c.name, c.contactName, c.contactPhone, c.contactEmail ?? ""]
+      return [
+        c.name,
+        c.contactName,
+        c.contactPosition ?? "",
+        c.contactPhone,
+        c.contactEmail ?? "",
+        c.note ?? "",
+      ]
         .join(" ")
         .toLowerCase()
         .includes(q);
     });
-  }, [customers, query, stageFilter]);
-
-  const stageCounts = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const c of customers) m.set(c.stage, (m.get(c.stage) ?? 0) + 1);
-    return m;
-  }, [customers]);
+  }, [customers, query]);
 
   function handleDelete(c: SerializedCustomer) {
     if (!window.confirm(`ลบลูกค้า ${c.code} "${c.name}" ?`)) return;
@@ -146,30 +129,16 @@ export default function CustomersClient({ customers, availableRooms, canEdit }: 
     });
   }
 
-  const roomOptions = availableRooms;
-
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <Input
           className="h-9 max-w-xs"
           aria-label="ค้นหาลูกค้า"
-          placeholder="ค้นหา ชื่อบริษัท / ผู้ติดต่อ / เบอร์โทร..."
+          placeholder="ค้นหา บริษัท / ผู้ติดต่อ / ตำแหน่ง / เบอร์โทร..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <select
-          className={selectCls}
-          value={stageFilter}
-          onChange={(e) => setStageFilter(e.target.value)}
-        >
-          <option value="">ทุกขั้นตอน</option>
-          {CUSTOMER_STAGES.map((s) => (
-            <option key={s} value={s}>
-              {CUSTOMER_STAGE_META[s].label} ({stageCounts.get(s) ?? 0})
-            </option>
-          ))}
-        </select>
         <span className="ml-auto text-sm text-muted-foreground">{filtered.length} ราย</span>
         {canEdit && (
           <Button size="sm" onClick={() => setEditing("new")}>
@@ -182,81 +151,70 @@ export default function CustomersClient({ customers, availableRooms, canEdit }: 
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead>รหัส</TableHead>
               <TableHead>ชื่อบริษัท</TableHead>
-              <TableHead>ขั้นตอน</TableHead>
               <TableHead>ผู้ติดต่อ</TableHead>
+              <TableHead>ตำแหน่งลูกค้า</TableHead>
               <TableHead>เบอร์โทร</TableHead>
-              <TableHead>ห้องที่สนใจ</TableHead>
-              <TableHead>ห้องที่เช่า</TableHead>
+              <TableHead>อีเมล</TableHead>
+              <TableHead>หมายเหตุ</TableHead>
               <TableHead className="w-24 text-center">ดู / แก้ไข</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
                   ไม่พบข้อมูลลูกค้า
                 </TableCell>
               </TableRow>
             )}
-            {filtered.map((c) => {
-              const meta = CUSTOMER_STAGE_META[stageOf(c.stage)];
-              return (
-                <TableRow key={c.id}>
-                  <TableCell className="font-mono text-xs font-medium">{c.code}</TableCell>
-                  <TableCell className="font-medium">{c.name}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={meta.badge}>
-                      {meta.label}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{c.contactName}</TableCell>
-                  <TableCell className="whitespace-nowrap">{c.contactPhone}</TableCell>
-                  <TableCell className="max-w-40 truncate text-xs text-muted-foreground">
-                    {c.interestedRooms.length > 0 ? c.interestedRooms.join(", ") : "-"}
-                  </TableCell>
-                  <TableCell className="tabular-nums">
-                    {c.rentedRoomCount > 0 ? `${c.rentedRoomCount} ห้อง` : "-"}
-                  </TableCell>
-                  <TableCell className="w-24">
-                    <div className="flex items-center gap-1">
+            {filtered.map((c) => (
+              <TableRow key={c.id}>
+                <TableCell className="font-medium">{c.name}</TableCell>
+                <TableCell>{c.contactName}</TableCell>
+                <TableCell>{c.contactPosition ?? "-"}</TableCell>
+                <TableCell className="whitespace-nowrap">{c.contactPhone}</TableCell>
+                <TableCell className="break-all">{c.contactEmail ?? "-"}</TableCell>
+                <TableCell className="max-w-64 whitespace-pre-wrap break-words text-sm text-muted-foreground">
+                  {c.note ?? "-"}
+                </TableCell>
+                <TableCell className="w-24">
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      tabIndex={-1}
+                      onClick={() => setViewing(c)}
+                      aria-label="ดูข้อมูล"
+                    >
+                      <Eye className="size-3.5" />
+                    </Button>
+                    {canEdit && (
                       <Button
                         variant="ghost"
                         size="sm"
                         tabIndex={-1}
-                        onClick={() => setViewing(c)}
-                        aria-label="ดูข้อมูล"
+                        onClick={() => setEditing(c)}
+                        aria-label="แก้ไข"
                       >
-                        <Eye className="size-3.5" />
+                        <Pencil className="size-3.5" />
                       </Button>
-                      {canEdit && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          tabIndex={-1}
-                          onClick={() => setEditing(c)}
-                          aria-label="แก้ไข"
-                        >
-                          <Pencil className="size-3.5" />
-                        </Button>
-                      )}
-                      {canEdit && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          tabIndex={-1}
-                          onClick={() => handleDelete(c)}
-                          aria-label="ลบ"
-                        >
-                          <Trash2 className="size-3.5 text-destructive" />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+                    )}
+                    {canEdit && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        tabIndex={-1}
+                        onClick={() => handleDelete(c)}
+                        aria-label="ลบ"
+                      >
+                        <Trash2 className="size-3.5 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </div>
@@ -264,7 +222,6 @@ export default function CustomersClient({ customers, availableRooms, canEdit }: 
       {editing && (
         <CustomerFormDialog
           customer={editing === "new" ? null : editing}
-          roomOptions={roomOptions}
           onClose={() => setEditing(null)}
         />
       )}
@@ -280,11 +237,9 @@ function label(text: string, htmlFor?: string) {
 
 function CustomerFormDialog({
   customer,
-  roomOptions,
   onClose,
 }: {
   customer: SerializedCustomer | null;
-  roomOptions: { code: string; name: string }[];
   onClose: () => void;
 }) {
   const [, startTransition] = useTransition();
@@ -296,12 +251,6 @@ function CustomerFormDialog({
   const [error, setError] = useState<string | null>(null);
 
   const set = (patch: Partial<CustomerFormValue>) => setForm((f) => ({ ...f, ...patch }));
-  const toggleRoom = (code: string) =>
-    set({
-      interestedRooms: form.interestedRooms.includes(code)
-        ? form.interestedRooms.filter((x) => x !== code)
-        : [...form.interestedRooms, code],
-    });
 
   async function save() {
     setError(null);
@@ -309,14 +258,10 @@ function CustomerFormDialog({
     const input: CustomerInput = {
       id: customer?.id,
       name: form.name,
-      stage: form.stage,
       contactName: form.contactName,
+      contactPosition: form.contactPosition,
       contactPhone: form.contactPhone,
       contactEmail: form.contactEmail,
-      interestedRooms: form.interestedRooms,
-      contractNo: form.contractNo,
-      contractStart: form.contractStart,
-      contractEnd: form.contractEnd,
       note: form.note,
     };
     startTransition(async () => {
@@ -338,8 +283,6 @@ function CustomerFormDialog({
     });
   }
 
-  const isRenting = form.stage === "RENTING";
-
   return (
     <Dialog open onOpenChange={(o) => !o && !busy && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
@@ -356,7 +299,7 @@ function CustomerFormDialog({
           </p>
         )}
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1">
             {label("ชื่อบริษัท/หน่วยงาน *", "cust-name")}
             <Input
@@ -367,31 +310,21 @@ function CustomerFormDialog({
             />
           </div>
           <div className="space-y-1">
-            {label("ขั้นตอน *", "cust-stage")}
-            <select
-              id="cust-stage"
-              className={selectCls}
-              value={form.stage}
-              onChange={(e) => set({ stage: e.target.value })}
-            >
-              {CUSTOMER_STAGES.map((s) => (
-                <option key={s} value={s}>
-                  {CUSTOMER_STAGE_META[s].label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1">
-            {label("วันที่สอบถาม", "cust-inquiry-date")}
-            <Input id="cust-inquiry-date" value={fmtDate(customer?.inquiryDate ?? null)} disabled />
-          </div>
-          <div className="space-y-1">
             {label("ผู้ติดต่อ *", "cust-contact-name")}
             <Input
               id="cust-contact-name"
               value={form.contactName}
               onChange={(e) => set({ contactName: e.target.value })}
               placeholder="ชื่อ-นามสกุล"
+            />
+          </div>
+          <div className="space-y-1">
+            {label("ตำแหน่งลูกค้า", "cust-contact-position")}
+            <Input
+              id="cust-contact-position"
+              value={form.contactPosition}
+              onChange={(e) => set({ contactPosition: e.target.value })}
+              placeholder="เช่น ผู้จัดการฝ่ายวิศวกรรม"
             />
           </div>
           <div className="space-y-1">
@@ -414,75 +347,14 @@ function CustomerFormDialog({
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          {label("ห้องที่สนใจ (เลือกได้หลายห้อง)")}
-          <div className="max-h-36 overflow-y-auto rounded-md border p-2">
-            {roomOptions.length === 0 ? (
-              <p className="p-1 text-xs text-muted-foreground">ยังไม่มีห้องในระบบ</p>
-            ) : (
-              <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-                {roomOptions.map((r) => (
-                  <label
-                    key={r.code}
-                    className="inline-flex cursor-pointer items-center gap-1.5 text-sm"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={form.interestedRooms.includes(r.code)}
-                      onChange={() => toggleRoom(r.code)}
-                    />
-                    <span className="font-mono text-xs">{r.code}</span>
-                    <span className="text-xs text-muted-foreground">{r.name}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {isRenting && (
-          <div className="rounded-md border p-3">
-            <div className="mb-2 text-xs font-semibold text-muted-foreground">ข้อมูลสัญญาเช่า</div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1">
-                {label("เลขที่สัญญา", "cust-contract-no")}
-                <Input
-                  id="cust-contract-no"
-                  value={form.contractNo}
-                  onChange={(e) => set({ contractNo: e.target.value })}
-                  placeholder="NT-2026-001"
-                />
-              </div>
-              <div className="space-y-1">
-                {label("วันเริ่มสัญญา", "cust-contract-start")}
-                <Input
-                  id="cust-contract-start"
-                  type="date"
-                  value={form.contractStart}
-                  onChange={(e) => set({ contractStart: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1">
-                {label("วันสิ้นสุดสัญญา", "cust-contract-end")}
-                <Input
-                  id="cust-contract-end"
-                  type="date"
-                  value={form.contractEnd}
-                  onChange={(e) => set({ contractEnd: e.target.value })}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
         <div className="space-y-1">
-          {label("หมายเหตุการติดตาม", "cust-note")}
+          {label("หมายเหตุ", "cust-note")}
           <Textarea
             id="cust-note"
             rows={3}
             value={form.note}
             onChange={(e) => set({ note: e.target.value })}
-            placeholder="ผลการโทร, นัดดูห้อง, ใบเสนอราคา..."
+            placeholder="รายละเอียดเพิ่มเติมเกี่ยวกับลูกค้า"
           />
         </div>
 
@@ -531,6 +403,10 @@ function CustomerDetailDialog({
           <div>
             <dt className="text-xs text-muted-foreground">ผู้ติดต่อ</dt>
             <dd className="pt-1 text-sm font-medium">{customer.contactName}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">ตำแหน่งลูกค้า</dt>
+            <dd className="pt-1 text-sm font-medium">{customer.contactPosition ?? "-"}</dd>
           </div>
           <div>
             <dt className="text-xs text-muted-foreground">เบอร์โทร / อีเมล</dt>
@@ -597,7 +473,7 @@ function CustomerDetailDialog({
 
         {customer.note && (
           <div className="rounded-md border bg-muted/30 p-3">
-            <div className="mb-1 text-xs font-medium text-muted-foreground">หมายเหตุการติดตาม</div>
+            <div className="mb-1 text-xs font-medium text-muted-foreground">หมายเหตุ</div>
             <p className="whitespace-pre-wrap text-sm">{customer.note}</p>
           </div>
         )}

@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -34,22 +33,22 @@ model Site {
 }
 
 model Building {
-  id       Int      @id @default(autoincrement())
-  siteId   Int
-  code     String   @unique @db.VarChar(20)
-  name     String   @db.VarChar(150)
-  site     Site     @relation(fields: [siteId], references: [id])
-  floors   Floor[]
+  id     Int     @id @default(autoincrement())
+  siteId Int
+  code   String  @unique @db.VarChar(20)
+  name   String  @db.VarChar(150)
+  site   Site    @relation(fields: [siteId], references: [id])
+  floors Floor[]
 }
 
 model Floor {
-  id         Int          @id @default(autoincrement())
+  id         Int      @id @default(autoincrement())
   buildingId Int
   level      Int
-  code       String       @unique @db.VarChar(30)
-  label      String       @db.VarChar(50)
-  planImage  String?      @db.VarChar(200)
-  building   Building     @relation(fields: [buildingId], references: [id])
+  code       String   @unique @db.VarChar(30)
+  label      String   @db.VarChar(50)
+  planImage  String?  @db.VarChar(200)
+  building   Building @relation(fields: [buildingId], references: [id])
   rooms      Room[]
   assets     Asset[]
 
@@ -95,21 +94,22 @@ model PhotoPoint {
 }
 
 model Customer {
-  id             Int       @id @default(autoincrement())
-  code           String    @unique @db.VarChar(20)
-  name           String    @db.VarChar(150)
-  stage          String    @default("INQUIRY") @db.VarChar(20)
-  contactName    String    @db.VarChar(120)
-  contactPhone   String    @db.VarChar(30)
-  contactEmail   String?   @db.VarChar(120)
+  id              Int       @id @default(autoincrement())
+  code            String    @unique @db.VarChar(20)
+  name            String    @db.VarChar(150)
+  stage           String    @default("INQUIRY") @db.VarChar(20)
+  contactName     String    @db.VarChar(120)
+  contactPosition String?   @db.VarChar(120)
+  contactPhone    String    @db.VarChar(30)
+  contactEmail    String?   @db.VarChar(120)
   interestedRooms Json?
-  inquiryDate    DateTime  @default(now())
-  contractNo     String?   @db.VarChar(60)
-  contractStart  DateTime?
-  contractEnd    DateTime?
-  note           String?   @db.Text
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  inquiryDate     DateTime  @default(now())
+  contractNo      String?   @db.VarChar(60)
+  contractStart   DateTime?
+  contractEnd     DateTime?
+  note            String?   @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model Asset {

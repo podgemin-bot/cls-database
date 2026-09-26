@@ -41,15 +41,15 @@ npx.cmd prisma generate    # หลังแก้ schema
 | `/floorplan` | Floor plan pins, room dialog + photo lightbox, filters |
 | `/engineering` | Power/AC/certificate/security tabs + AssetDialog/SecurityEditDialog/CertDialog |
 | `/profile` | แก้ชื่อ / เปลี่ยนรหัสผ่าน / จัดการ session |
-| `/customers` | ลูกค้า/ลีด: stage INQUIRY→ROOM_INQUIRY→RENTING→CLOSED, contract section, search |
+| `/customers` | ข้อมูลบริษัท/ผู้ติดต่อ: ตำแหน่ง โทรศัพท์ อีเมล หมายเหตุ และ search |
 | `/admin` | User/role management (search/filter/delete-user) |
 | `/login` `/signup` | auth (public, กลับ redirect เมื่อ logged in แล้ว) |
 
 ## Data model (prisma/schema.prisma)
 - `User`, `Session`, `Account` (better-auth) + field `role`
-- `Customer` — code, name, stage, contact*, interestedRooms Json, inquiryDate, contract info
+- `Customer` — code, name, stage, contactName/contactPosition/contactPhone/contactEmail, note, interestedRooms Json, inquiryDate, contract info
 - CLS data: sites/buildings/floors/rooms + engineering (asset/certificate) + security columns
-- Migration ล่าสุด: `20260919150744_add_customer`
+- Migration ล่าสุด: `20260925123705_add_customer_contact_position`
 
 ## Testing (คำสั่ง: `npm.cmd test` — 26 files / 260 tests)
 Tests ระดับ integration ใช้ DB จริง (mock auth ผ่าน `vi.mock`; สร้าง temp user + cleanup เอง):
@@ -63,7 +63,18 @@ Tests ระดับ integration ใช้ DB จริง (mock auth ผ่า
 - Smoke/e2e scripts (`scripts/*-smoke.ts`) รันยิง dev server ผ่าน better-auth HTTP — ใช้เป็น final check หลังแก้เรื่อง auth/route
 
 ## ประวัติที่ทำ (session ใหม่ล่าสุดอยู่บนสุด)
-1. **Responsive / accessibility / mobile table UX (session นี้ — ยังต้อง commit)**
+1. **Customer contact fields + simplified form (session นี้ — ยังต้อง commit)**
+   - ตารางลูกค้าเหลือคอลัมน์ ชื่อบริษัท, ผู้ติดต่อ, ตำแหน่งลูกค้า, เบอร์โทร, อีเมล, หมายเหตุ และ action
+   - เพิ่ม `Customer.contactPosition` แบบ nullable พร้อม migration `20260925123705_add_customer_contact_position`; apply กับ local MariaDB และ `prisma generate` แล้ว
+   - ฟอร์มเพิ่ม/แก้ไขถอดขั้นตอน, วันที่สอบถาม, ห้องที่สนใจ และข้อมูลสัญญาออก; action ไม่เขียนฟิลด์เหล่านี้เพื่อรักษาข้อมูล workflow เดิม
+   - search ครอบคลุมบริษัท ผู้ติดต่อ ตำแหน่ง โทรศัพท์ อีเมล และหมายเหตุ
+   - Verification อัตโนมัติ: customer component + DB integration 17 tests, full Vitest 26 files / 260 tests, `tsc --noEmit`, ESLint และ customer smoke 12/12 ผ่าน
+   - Chrome headless UAT รอบสุดท้าย (viewport 1440×1000, login EDITOR ผ่าน UI) ผ่าน:
+     - header ตรงตาม 6 คอลัมน์ข้อมูล + action และฟอร์มไม่มี 4 ช่องที่ถูกถอดออก
+     - เพิ่มลูกค้าผ่านฟอร์มและเห็นครบทุกฟิลด์ในตาราง; DB สร้าง `CUST-006`, `stage=INQUIRY` และข้อมูลตรงทุก field
+     - ลบผ่าน confirm → แถวหายจากหน้าและ DB ใน ~385ms; server action ~21ms
+     - ไม่พบ console error, JavaScript runtime error หรือ `dev.err.log`; ลบลูกค้า/บัญชี UAT ครบและไม่มี Chrome headless ค้าง
+2. **Responsive / accessibility / mobile table UX** (commit `da2727f`)
    - **แก้ navbar ล้นจอช่วง tablet**: เปลี่ยน desktop navigation จาก `md` เป็น `xl`, แสดง hamburger ถึงก่อน `xl`, ใส่ `shrink-0` ให้ control group/logo และจำกัดชื่อผู้ใช้ด้วย `max-w-48 truncate`
    - **เพิ่ม accessible name ให้ hamburger**: `aria-label="เปิดเมนูนำทาง"`; test เปลี่ยนมา query ด้วย role/name จริง
    - **แก้ profile ล้นแนวนอนเมื่อข้อมูลยาว**: ใส่ `min-w-0` ให้ grid columns/session content, email ใช้ `break-all`, session metadata ใช้ `break-words`; เพิ่ม test email ยาว
@@ -76,7 +87,7 @@ Tests ระดับ integration ใช้ DB จริง (mock auth ผ่า
      - Chrome headless UAT ผ่านที่ 390/768/1024/1280/1440px: document overflow=0 ทุกขนาด; hamburger แสดงที่ <=1024 และซ่อนที่ >=1280
      - profile ที่ 390px overflow=0; rooms scroll hint แสดงและ table scroll 356→1084px; `/favicon.ico`=200; console/network errors=0
    - Dev server restart หลัง build แล้ว: `http://localhost:3000` ตอบ 200
-2. **Production-readiness + UAT ครอบทุกหน้า** (commit `c93a3ab`)
+3. **Production-readiness + UAT ครอบทุกหน้า** (commit `c93a3ab`)
    - **`npm run build` ผ่าน** (standalone + `cacheComponents`) — compile 19.7s (cold) / 1.6s (warm), 12 routes + proxy
    - **fix(floorplan): `router.refresh()` หลัง `savePin`** — floorplan ยังใช้ pattern เก่า (server `refresh()` + `startTransition`, ไม่มี client refresh) → ใส่ `useRouter` + `router.refresh()` หลัง pin วางสำเร็จใน `floorplan-client.tsx` (ระบุไม่ใช้แล้ว `photoPoint` mutation ค้างแบบเดียวกับ engineering) + mock `next/navigation` + ยืนยัน refresh ใน `floorplan-client.test.tsx`
    - **UAT UI ครอบหน้าที่เหลือ 12/12 ผ่าน 2 รอบซ้ำ** (playwright-core + Chrome headless):
@@ -84,7 +95,7 @@ Tests ระดับ integration ใช้ DB จริง (mock auth ผ่า
      - admin (ADMIN): create user ผ่านฟอร์ม → row โผล่ ~1.2s, role=EDITOR, DB จริง; delete → confirm "ยืนยันการลบ" → row + DB หาย
      - profile (ADMIN): เปลี่ยนชื่อ → success ~1.3s + DB อัปเดต + restore; revoke "ออกจากระบบอุปกรณ์อื่นทั้งหมด" → sessions 2→1, session อุปกรณ์ B invalid จริง
    - **ทบทวน hydration warning**: เจอตอน UAT ก่อนหน้าแบบชั่วคราว แต่ post-hoc probes (ทุกหน้าโหลด + flow save/refresh ผ่าน console capture) **reproduce ไม่ได้** — สรุปเป็น dev-only transient noise (Turbopack + cacheComponents), ไม่ใช่ code bug
-3. **fix(rooms/locations/customers): client `router.refresh()` หลัง actions** (commit `a116452`)
+4. **fix(rooms/locations/customers): client `router.refresh()` หลัง actions** (commit `a116452`)
    - เทียบกับ fix ครั้งก่อนของ engineering — ย้ายไปใช้ `router.refresh()` ฝั่ง client หลัง action สำเร็จ (เก็บ server `refresh()` ใน actions ไว้)
    - `rooms-client.tsx`: refresh หลัง save / upload photo / delete photo
    - `locations-client.tsx`: ย้าย `runAction` เข้า client component + `router.refresh()` เมื่อสำเร็จ
@@ -94,20 +105,21 @@ Tests ระดับ integration ใช้ DB จริง (mock auth ผ่า
      - rooms: save แสดง success ใน ~400–450ms ไม่ค้าง "Rendering", DB อัปเดตจริง
      - locations: create site → dialog ปิด ~320–350ms, row `UAT-*` ใน DB + render ขึ้นหน้า, delete มีผลจริง
      - customers: create → dialog ปิด ~330–415ms, DB + render + delete ผ่าน
-4. **fix(engineering): stuck-on-save hang** (commit `c834e14`)
+5. **fix(engineering): stuck-on-save hang** (commit `c834e14`)
    - อาการ: หน้า Power System แก้ไขอุปกรณ์ → กดบันทึก → ค้างที่ indicator "Rendering"
    - สาเหตุ: actions เรียก `refresh()` → Next.js embed re-render หน้านี้ (หนักมาก) ใน action response; client transition ไม่ settle — ตรงกับ known issue (#88767/#86055) เมื่อ `cacheComponents` + Turbopack
    - แก้: mirror pattern ของ admin/profile — เรียก `router.refresh()` ฝั่ง client **หลัง** action สำเร็จในทุกจุด (deleteAsset/deleteCertificate + save ทุก dialog — Asset/Security/Cert) `engineering-client.tsx`
    - เพิ่ม mock `next/navigation` ใน `engineering-client.test.tsx`
    - **ยืนยันด้วย UAT จริง** (playwright-core + Chrome headless, login เป็น EDITOR → แก้ไขชื่ออุปกรณ์ → บันทึก): dialog ปิดใน ~330ms, ไม่มี "Rendering" ค้าง, DB เปลี่ยนจริง
-5. **feat(auth): protect /customers** (commit `b52799f`) — เพิ่ม `/customers` ใน `PROTECTED_PREFIXES` ของ proxy
-6. **Docker/deploy prep** (commit `c834e14` รวมไว้):
+6. **feat(auth): protect /customers** (commit `b52799f`) — เพิ่ม `/customers` ใน `PROTECTED_PREFIXES` ของ proxy
+7. **Docker/deploy prep** (commit `c834e14` รวมไว้):
    - `Dockerfile` — standalone multi-stage + prisma engines/schema + `docker-entrypoint.sh` (run `migrate deploy` ก่อน start)
    - `docker-entrypoint.sh`, `scripts/deploy.ps1` (build/run script), `.env.production.example`
    - `.dockerignore` ย่อเหลือ minimum
 
 ## งานค้าง / โน้ต
-- **งาน responsive/accessibility/mobile table UX session นี้ยังไม่ commit** — รวมไฟล์ navbar/logo/navigation-sheet/profile/table + tests, favicon move และ `handoff.md`
+- **งาน customer contact fields + simplified form session นี้ยังไม่ commit** — รวม schema/migration, customer UI/actions/tests, seed/smoke และ `handoff.md`
+- **ข้อสังเกตจาก UAT:** `nextCode()` อ่านรหัสลูกค้าที่มีอยู่ล่าสุดแล้วบวก 1; หลังลบ `CUST-006` ที่เป็นรหัสสูงสุด รหัสนี้อาจถูกใช้ซ้ำกับลูกค้าใหม่ — ควรพิจารณา sequence/counter หรือวิธีออกรหัสที่ไม่ reuse หากต้องการคง audit semantics
 - **Docker deploy ยังไม่เคยรันจริง** — มี Dockerfile/deploy.ps1 แต่ยังไม่ได้ `docker build` + run ตรวจ standalone จริง
 - ถ้าหน้าอื่นเจอค้างแบบเดียวกัน (action เรียก `refresh()` แต่ client ไม่ `router.refresh()`) → ใช้ fix เดียวกับ engineering/floorplan; ตอนนี้ครบคือ rooms/locations/customers/engineering/floorplan (admin/profile ดีอยู่แล้ว)
 - **Hydration warning ใน dev**: เป็นครั้งคราว ชั่วคราว กับ `cacheComponents` + Turbopack — reproduce ไม่ได้ใน post-hoc probes, มี element `nextjs-portal` (ของ Next dev tools, ปกติ) จะเบลอถ้าเล่น UAT ผ่าน `[role="dialog"]` ทั่วไป ให้ key ที่ title ของ dialog จริงแทน
@@ -116,14 +128,15 @@ Tests ระดับ integration ใช้ DB จริง (mock auth ผ่า
   - login/dialog-open: click ได้แต่ไม่มีผล (handler ยังไม่ attached) → ควร retry + รอ signal จริงของ form (เช่น `[role="dialog"] input` ครบจำนวน)
   - ปุ่ม revoke-all ของ profile เป็น **inline expansion** (ปุ่ม "ยืนยัน" ใน CardFooter) ไม่ใช่ Radix AlertDialog — ไม่มี `role="dialog"`
   - "ออกจากระบบอุปกรณ์อื่นทั้งหมด" จะแสดงเฉพาะเมื่อหน้าโหลดแล้วมี `otherSessions>0` → ต้อง sign-in อุปกรณ์ที่ 2 **ก่อน** `goto /profile`
-- Dev server รันอยู่ที่ http://localhost:3000 (restart หลัง build แล้ว; log: `dev.log`, `dev.err.log`; มี `../dev.log` และ `../dev.err.log` untracked ที่ git root จากการรันก่อนหน้า)
+- Dev server รันอยู่ที่ http://localhost:3000 (restart หลัง schema/migration แล้ว; `/login` ตอบ 200, `dev.err.log` ว่าง; log: `dev.log`, `dev.err.log`; มี `../dev.log` และ `../dev.err.log` untracked ที่ git root จากการรันก่อนหน้า)
 - `scripts/` มีสคริปต์แนบครั้งเดียว (seed/backfill/normalize/smoke/import) — รันซ้ำส่วนใหญ่ปลอดภัย (upsert)
 - `playwright-core` อาจติดค้างใน `node_modules` (ติดตั้งแบบ `--no-save` จาก UAT) — ไม่ได้อยู่ใน `package.json`
 - ตรวจ `git status` ให้สะอาดก่อนส่งต่องาน (exclude `dev.log`/`dev.err.log`/LibreOffice `~.lock` file)
 - `AGENTS.md` ของโปรเจกต์: Next.js เวอร์ชันนี้มี breaking changes — ต้องอ่าน `node_modules/next/dist/docs/` ก่อนเขียนโค้ด
 
 ## งานที่จะทำต่อ
-1. **Commit + push งาน session ปัจจุบัน**: responsive navbar + profile overflow + mobile table hint + favicon + tests + handoff นี้ — จากนั้นตรวจ `git status` (ไม่รวม `../dev*.log` ที่เป็น runtime log)
-2. **ทดสอบ Docker deploy จริง**: `docker build -t cls-facility-center .` → รันด้วย `--env-file .env` → smoke ตรวจ production build (`npm run start`) ก่อน
-3. ถ้าต้องปรับ UX มือถือเพิ่ม ให้พิจารณาเปลี่ยนตาราง rooms/customers/engineering/admin เป็น card layout เฉพาะ mobile; รอบนี้ใช้ scroll hint เพื่อคง business actions เดิมและลดความเสี่ยง
-4. (เมื่อมีหน้าใหม่) ถ้าเจอค้าง "Rendering" หลัง action → ใช้ `router.refresh()` client-side ตาม pattern ที่บันทึกไว้ข้างบน
+1. **Commit + push งาน session ปัจจุบัน**: customer contact fields + simplified form + migration + tests + handoff นี้ — จากนั้นตรวจ `git status` (ไม่รวม `../dev*.log` ที่เป็น runtime log)
+2. **ตัดสินใจแก้ customer code reuse**: ป้องกันการออกรหัส `CUST-xxx` ซ้ำหลังลบลูกค้ารหัสสูงสุด หรือยืนยันว่า reuse เป็นพฤติกรรมที่ยอมรับได้
+3. **ทดสอบ Docker deploy จริง**: `docker build -t cls-facility-center .` → รันด้วย `--env-file .env` → smoke ตรวจ production build (`npm run start`) ก่อน
+4. ถ้าต้องปรับ UX มือถือเพิ่ม ให้พิจารณาเปลี่ยนตาราง rooms/customers/engineering/admin เป็น card layout เฉพาะ mobile; รอบนี้ใช้ scroll hint เพื่อคง business actions เดิมและลดความเสี่ยง
+5. (เมื่อมีหน้าใหม่) ถ้าเจอค้าง "Rendering" หลัง action → ใช้ `router.refresh()` client-side ตาม pattern ที่บันทึกไว้ข้างบน

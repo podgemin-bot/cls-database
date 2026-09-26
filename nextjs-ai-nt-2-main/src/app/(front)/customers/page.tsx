@@ -58,6 +58,7 @@ export default async function CustomersPage() {
       name: c.name,
       stage: isStage(c.stage) ? c.stage : "INQUIRY",
       contactName: c.contactName,
+      contactPosition: c.contactPosition,
       contactPhone: c.contactPhone,
       contactEmail: c.contactEmail,
       interestedRooms: interested,
@@ -71,19 +72,16 @@ export default async function CustomersPage() {
     };
   });
 
-  const availableRooms = rooms.map((r) => ({ code: r.code, name: r.name }));
-
   return (
     <div className="mx-auto max-w-(--breakpoint-xl) px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">ลูกค้า</h1>
         <p className="text-sm text-muted-foreground">
-          ฐานข้อมูลลูกค้าและผู้ติดต่อ — สอบถามทั่วไป, สอบถามห้องว่าง, และเช่าห้อง
+          ฐานข้อมูลบริษัท ผู้ติดต่อ และข้อมูลการติดต่อของลูกค้า
         </p>
       </div>
       <CustomersClient
         customers={serialized}
-        availableRooms={availableRooms}
         canEdit={canEdit}
       />
     </div>

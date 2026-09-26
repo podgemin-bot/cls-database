@@ -266,6 +266,7 @@ export type SerializedCustomer = {
   name: string
   stage: CustomerStage
   contactName: string
+  contactPosition: string | null
   contactPhone: string
   contactEmail: string | null
   interestedRooms: string[]

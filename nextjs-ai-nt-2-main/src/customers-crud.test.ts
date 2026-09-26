@@ -26,14 +26,10 @@ const createdIds: number[] = [];
 function input(over: Partial<CustomerInput> = {}): CustomerInput {
   return {
     name: "TEST อินทิเกรชัน จำกัด",
-    stage: "ROOM_INQUIRY",
     contactName: "คุณเทสต์",
+    contactPosition: "วิศวกรทดสอบ",
     contactPhone: "089-999-9999",
     contactEmail: "test@example.com",
-    interestedRooms: ["PKB-B01-F02-R02"],
-    contractNo: "",
-    contractStart: "",
-    contractEnd: "",
     note: "crud test",
     ...over,
   };
@@ -69,9 +65,9 @@ describe("customer CRUD actions (real DB, auth mocked)", () => {
     const row = await prisma.customer.findFirst({ where: { name: "TEST อินทิเกรชัน จำกัด" } });
     expect(row).not.toBeNull();
     expect(row?.code).toMatch(/^CUST-\d{3}$/);
-    expect(row?.stage).toBe("ROOM_INQUIRY");
+    expect(row?.stage).toBe("INQUIRY");
     expect(row?.contactName).toBe("คุณเทสต์");
-    expect(row?.interestedRooms).toEqual(["PKB-B01-F02-R02"]);
+    expect(row?.contactPosition).toBe("วิศวกรทดสอบ");
     createdIds.push(row!.id);
   });
 
@@ -81,26 +77,28 @@ describe("customer CRUD actions (real DB, auth mocked)", () => {
     expect(res.error).toBe("invalid-input");
   });
 
-  it("rejects unknown stage", async () => {
-    const res = await createCustomer(input({ stage: "FUTURE" }));
-    expect(res.ok).toBe(false);
-    expect(res.error).toBe("invalid-input");
-  });
-
-  it("updateCustomer moves stage to RENTING with contract info", async () => {
+  it("updateCustomer preserves workflow data removed from the form", async () => {
     const row = await prisma.customer.findFirst({
       where: { name: "TEST อินทิเกรชัน จำกัด" },
     });
     expect(row).not.toBeNull();
 
+    await prisma.customer.update({
+      where: { id: row!.id },
+      data: {
+        stage: "RENTING",
+        interestedRooms: ["PKB-B01-F02-R02"],
+        contractNo: "T-2026-001",
+        contractStart: new Date("2026-01-01"),
+        contractEnd: new Date("2027-12-31"),
+      },
+    });
+
     const res = await updateCustomer(
       input({
         id: row!.id,
         name: "TEST อินทิเกรชัน จำกัด 2",
-        stage: "RENTING",
-        contractNo: "T-2026-001",
-        contractStart: "2026-01-01",
-        contractEnd: "2027-12-31",
+        contactPosition: "หัวหน้าวิศวกรทดสอบ",
         note: "",
       })
     );
@@ -108,7 +106,9 @@ describe("customer CRUD actions (real DB, auth mocked)", () => {
 
     const upd = await prisma.customer.findUnique({ where: { id: row!.id } });
     expect(upd?.name).toBe("TEST อินทิเกรชัน จำกัด 2");
+    expect(upd?.contactPosition).toBe("หัวหน้าวิศวกรทดสอบ");
     expect(upd?.stage).toBe("RENTING");
+    expect(upd?.interestedRooms).toEqual(["PKB-B01-F02-R02"]);
     expect(upd?.contractNo).toBe("T-2026-001");
     expect(upd?.contractStart?.toISOString().slice(0, 10)).toBe("2026-01-01");
     expect(upd?.contractEnd?.toISOString().slice(0, 10)).toBe("2027-12-31");
